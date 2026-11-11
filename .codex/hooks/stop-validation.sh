@@ -26,14 +26,14 @@ fi
 
 # 1. Validate code formatting
 echo "🧼 Checking code formatting with ruff..." >&2
-docker compose -f "$compose_file" exec -T app uv run ruff format --check app/ tests/ >&2
+docker compose -f "$compose_file" exec -T app uv run ruff format --check app/ tests/ >&2 || exit 2
 
 # 2. Perform static analysis and linting
 echo "🔍 Linting code with ruff..." >&2
-docker compose -f "$compose_file" exec -T app uv run ruff check app/ tests/ >&2
+docker compose -f "$compose_file" exec -T app uv run ruff check app/ tests/ >&2 || exit 2
 
 # 3. Execute unit tests
 echo "🧪 Running unit tests with pytest..." >&2
-docker compose -f "$compose_file" exec -T app uv run pytest >&2
+docker compose -f "$compose_file" exec -T app uv run pytest >&2 || exit 2
 
 printf '{}\n'

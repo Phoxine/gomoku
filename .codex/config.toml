@@ -13,7 +13,7 @@ matcher = "^Bash$"
 [[hooks.PreToolUse.hooks]]
 type = "command"
 # Host prerequisite: uv must be installed before using this repository's Codex hooks.
-command = "command -v uv >/dev/null 2>&1 || { echo 'uv is required on the host for repository Codex hooks.' >&2; exit 2; }; uv run python \"$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_use_policy.py\""
+command = "command -v uv >/dev/null 2>&1 || { echo 'uv is required on the host for repository Codex hooks.' >&2; exit 2; }; python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_use_policy.py\" || exit 2"
 timeout = 30
 statusMessage = "Checking command policy"
 
