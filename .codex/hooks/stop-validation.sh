@@ -27,7 +27,13 @@ fi
 
 compose=(bash "$repo_root/scripts/compose.sh")
 
-if ! "${compose[@]}" ps --status running --services | grep -qx app; then
+if ! running_services="$("${compose[@]}" ps --status running --services)"; then
+  echo "Skipping final validation: unable to query Docker Compose services for this worktree." >&2
+  printf '{}\n'
+  exit 0
+fi
+
+if ! grep -qx app <<< "$running_services"; then
   echo "Skipping final validation: Docker Compose app service is not running for this worktree." >&2
   printf '{}\n'
   exit 0

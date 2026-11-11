@@ -39,4 +39,14 @@ else
   exit 1
 fi
 
+root_env="$repo_root/.env"
+if [[ -f "$root_env" && ! -L "$root_env" ]]; then
+  if existing_project="$(bash "$repo_root/scripts/resolve-compose-project-name.sh" "$root_env")"; then
+    if [[ "$existing_project" =~ ^gomoku_[a-z0-9_-]+_${worktree_hash}$ ]]; then
+      printf '%s\n' "$existing_project"
+      exit 0
+    fi
+  fi
+fi
+
 printf 'gomoku_%s_%s\n' "$project_suffix" "$worktree_hash"

@@ -46,7 +46,7 @@ The development environment is entirely containerized. Do not install project de
 ### Core Environment Variables & Multi-Worktree Isolation
 Each worktree must use its own Docker Compose project, environment files, containers, network, and database volume:
 - Run `bash scripts/init-worktree-env.sh` in each feature worktree before starting Docker Compose. It creates a local root `.env`, fills blank isolation settings, and copies `src/.env.example` to `src/.env` if needed.
-- `COMPOSE_PROJECT_NAME` belongs in the worktree's **root `.env`**. The initializer derives it from the branch name and a stable hash of the canonical worktree path; values in the app service's `env_file` (`src/.env`) are loaded too late to select the project.
+- `COMPOSE_PROJECT_NAME` belongs in the worktree's **root `.env`**. The initializer derives it from the branch name and a stable hash of the canonical worktree path, then preserves that project name across branch renames; values in the app service's `env_file` (`src/.env`) are loaded too late to select the project.
 - Keep `POSTGRES_PASSWORD` in the root `.env`. Keep Django application settings such as `DJANGO_SECRET_KEY` and `DEBUG` in `src/.env`.
 - Compose supplies `DATABASE_URL` to the app and connects it to the `db` service on that worktree's private Compose network.
 - Do not publish the database port to the host. The app reaches Postgres using `db:5432`; each Compose project owns a separate network and `postgres_data` volume.

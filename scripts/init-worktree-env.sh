@@ -7,6 +7,7 @@ app_env="$repo_root/src/.env"
 lock_dir="$repo_root/.worktree-env.lock"
 temp_root_env=""
 temp_app_env=""
+temp_probe_env=""
 project_name="$(bash "$repo_root/scripts/worktree-project-name.sh")"
 legacy_project="$(bash "$repo_root/scripts/worktree-project-name.sh" legacy)"
 
@@ -23,6 +24,9 @@ cleanup_worktree_env() {
   fi
   if [[ -n "$temp_app_env" && -e "$temp_app_env" ]]; then
     rm -f -- "$temp_app_env"
+  fi
+  if [[ -n "$temp_probe_env" && -e "$temp_probe_env" ]]; then
+    rm -f -- "$temp_probe_env"
   fi
   rmdir "$lock_dir" 2>/dev/null || true
 }
@@ -51,10 +55,13 @@ if [[ -e "$root_env" ]]; then
     echo "Keeping the legacy Compose project name to preserve its existing database volume. Migrate the database explicitly before switching to the hashed project name." >&2
   fi
 
+  temp_probe_env="$(mktemp "$repo_root/.env.XXXXXX")"
+  awk '!/^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROJECT_NAME[[:space:]]*[=:]/' "$root_env" > "$temp_probe_env"
+  chmod 600 "$temp_probe_env"
   if ! password_present="$(
     env -u COMPOSE_PROJECT_NAME -u POSTGRES_PASSWORD docker compose \
       --project-directory "$repo_root" \
-      --env-file "$root_env" \
+      --env-file "$temp_probe_env" \
       -f "$repo_root/scripts/compose-env-probe.yaml" \
       config --environment \
       | awk -F= '
@@ -71,6 +78,8 @@ if [[ -e "$root_env" ]]; then
     echo "Docker Compose could not read environment values from the root .env file." >&2
     exit 1
   fi
+  rm -f -- "$temp_probe_env"
+  temp_probe_env=""
 else
   existing_project=""
   password_present="no"
@@ -100,7 +109,7 @@ elif [[ -z "$existing_project" || "$password_present" != "yes" ]]; then
     -v update_project="$([[ -z "$existing_project" ]] && printf yes || printf no)" \
     -v postgres_password="$postgres_password" \
     -v update_password="$([[ "$password_present" == "yes" ]] && printf no || printf yes)" '
-      /^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROJECT_NAME[[:space:]]*=/ {
+      /^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROJECT_NAME[[:space:]]*[=:]/ {
         if (update_project == "yes") print "COMPOSE_PROJECT_NAME=" project_name
         else print
         project_seen = 1

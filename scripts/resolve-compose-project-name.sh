@@ -11,9 +11,9 @@ if [[ ! -f "$env_file" || -L "$env_file" ]]; then
 fi
 
 if ! awk '
-  /^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROJECT_NAME[[:space:]]*=/ {
+  /^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROJECT_NAME[[:space:]]*[=:]/ {
     value = $0
-    sub(/^[^=]*=/, "", value)
+    sub(/^[^=:]*[=:]/, "", value)
     sub(/^[[:space:]]+/, "", value)
     sub(/^#.*/, "", value)
     sub(/[[:space:]]+#.*$/, "", value)

@@ -18,7 +18,7 @@ bash scripts/compose.sh up --build -d
 
 For infrastructure work, use the `infra/<task-slug>` branch namespace instead.
 
-The initializer creates a private root `.env` with a `COMPOSE_PROJECT_NAME` derived from the readable branch name and a stable hash of the canonical worktree path. This prevents sanitized branch-name collisions. It generates a PostgreSQL password when one is missing and copies `src/.env.example` to `src/.env` if needed. Compose reads `COMPOSE_PROJECT_NAME` from the root `.env`; do not put it only in `src/.env`, because service `env_file` values do not select the Compose project. Never symlink either env file from another worktree.
+The initializer creates a private root `.env` with a `COMPOSE_PROJECT_NAME` derived from the readable branch name and a stable hash of the canonical worktree path. This prevents sanitized branch-name collisions and keeps the initialized project name stable if the branch is renamed. It generates a PostgreSQL password when one is missing and copies `src/.env.example` to `src/.env` if needed. Compose reads `COMPOSE_PROJECT_NAME` from the root `.env`; do not put it only in `src/.env`, because service `env_file` values do not select the Compose project. Never symlink either env file from another worktree.
 
 Use `bash scripts/compose.sh` for startup, validation, and cleanup. It passes the root `.env` project name explicitly, so exported shell variables cannot redirect the command. Each Compose project has its own containers, default network, and `postgres_data` volume. The database has no host-published port, and the worktree is mounted into only its own app container. If a future service needs a host-published port, assign a distinct per-worktree host port in the root `.env` before starting it.
 
