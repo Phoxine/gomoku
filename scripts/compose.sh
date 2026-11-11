@@ -10,14 +10,15 @@ if [[ ! -f "$root_env" || -L "$root_env" ]]; then
 fi
 
 project_name="$(bash "$repo_root/scripts/resolve-compose-project-name.sh" "$root_env")"
-if [[ -z "$project_name" || ! "$project_name" =~ ^gomoku_[a-z0-9_-]+$ ]]; then
+if [[ -z "$project_name" || ! "$project_name" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
   echo "The root .env must define a non-empty, valid COMPOSE_PROJECT_NAME. Re-run the worktree initializer." >&2
   exit 1
 fi
 
 expected_project="$(bash "$repo_root/scripts/worktree-project-name.sh")"
 legacy_project="$(bash "$repo_root/scripts/worktree-project-name.sh" legacy)"
-if [[ "$project_name" != "$expected_project" && "$project_name" != "$legacy_project" ]]; then
+default_project="$(bash "$repo_root/scripts/worktree-project-name.sh" directory)"
+if [[ "$project_name" != "$expected_project" && "$project_name" != "$legacy_project" && "$project_name" != "$default_project" ]]; then
   echo "The root .env project name does not belong to this worktree. Re-run the initializer or migrate the existing database explicitly." >&2
   exit 1
 fi

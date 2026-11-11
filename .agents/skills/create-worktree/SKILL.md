@@ -24,6 +24,6 @@ Use `bash scripts/compose.sh` for startup, validation, and cleanup. It passes th
 
 Tell the user the branch name, absolute worktree path, and Compose project name so another session can open that directory. Do not commit, push, merge, or remove worktrees unless requested.
 
-The resolver uses Docker Compose's dotenv parser with a minimal probe configuration. The initializer serializes concurrent runs, creates and updates environment files atomically, cleans temporary files on exit, and Git ignores `.env.*` temporary files. Existing legacy project names remain unchanged so their volumes stay attached; require explicit database migration before changing them.
+The resolver uses Docker Compose's dotenv parser with a minimal probe configuration. The initializer serializes concurrent runs, creates and updates environment files atomically, cleans temporary files on exit, and Git ignores `.env.*` temporary files. Existing legacy and directory-default project names remain available so their volumes stay attached. If a default project's database volume exists, preserve its project name and original password or migrate the database explicitly before switching.
 
 For the environment variable split and cleanup behavior, see [`docs/codex/workflows/multi-session-worktrees.md`](../../../docs/codex/workflows/multi-session-worktrees.md).

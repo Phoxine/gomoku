@@ -51,7 +51,7 @@ Each worktree must use its own Docker Compose project, environment files, contai
 - Compose supplies `DATABASE_URL` to the app and connects it to the `db` service on that worktree's private Compose network.
 - Do not publish the database port to the host. The app reaches Postgres using `db:5432`; each Compose project owns a separate network and `postgres_data` volume.
 - Use `bash scripts/compose.sh` for every local Compose command. It resolves the project from the current worktree's root `.env` and explicitly selects that project, so an exported `COMPOSE_PROJECT_NAME` cannot redirect commands to another stack. Never symlink `.env` files between worktrees.
-- The initializer preserves existing legacy project names to keep their database volumes attached. Require an explicit database migration before changing a legacy project name to its path-hashed name.
+- The initializer preserves existing legacy and directory-default project names to keep their database volumes attached. Before switching an existing default project, it checks for its `postgres_data` volume and requires the original project name and password or an explicit database migration.
 
 ## 🔄 Quality Gates & Workflow Boundaries
 - **Testing & Formatting:** Every service function requires a corresponding unit test in [`src/tests/`](src/tests/) (e.g., `user_service_test.py`). When this worktree's app container is running, the `Stop` hook ([.codex/hooks/stop-validation.sh](.codex/hooks/stop-validation.sh)) checks formatting, lint, and tests against the container selected by this worktree's `COMPOSE_PROJECT_NAME` through `scripts/compose.sh`. If this worktree has no initialized environment or its app service is stopped, the hook skips validation.

@@ -10,6 +10,7 @@ temp_app_env=""
 temp_probe_env=""
 project_name="$(bash "$repo_root/scripts/worktree-project-name.sh")"
 legacy_project="$(bash "$repo_root/scripts/worktree-project-name.sh" legacy)"
+default_project="$(bash "$repo_root/scripts/worktree-project-name.sh" directory)"
 
 if ! mkdir "$lock_dir" 2>/dev/null; then
   echo "Another worktree environment initialization is running, or a stale lock exists at $lock_dir." >&2
@@ -40,13 +41,20 @@ if [[ -L "$root_env" || -L "$app_env" ]]; then
   exit 1
 fi
 
+if ! default_project_volumes="$(docker volume ls --quiet \
+  --filter "label=com.docker.compose.project=$default_project" \
+  --filter label=com.docker.compose.volume=postgres_data)"; then
+  echo "Could not inspect Docker volumes to protect an existing default Compose database." >&2
+  exit 1
+fi
+
 if [[ -e "$root_env" ]]; then
   if ! existing_project="$(bash "$repo_root/scripts/resolve-compose-project-name.sh" "$root_env")"; then
     echo "Could not safely resolve this worktree's existing Compose project name." >&2
     exit 1
   fi
 
-  if [[ -n "$existing_project" && "$existing_project" != "$project_name" && "$existing_project" != "$legacy_project" ]]; then
+  if [[ -n "$existing_project" && "$existing_project" != "$project_name" && "$existing_project" != "$legacy_project" && "$existing_project" != "$default_project" ]]; then
     echo "The root .env belongs to a different Docker project. Keep its database volume and resolve the project-name mismatch explicitly." >&2
     exit 1
   fi
@@ -56,7 +64,11 @@ if [[ -e "$root_env" ]]; then
   fi
 
   temp_probe_env="$(mktemp "$repo_root/.env.XXXXXX")"
-  awk '!/^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROJECT_NAME[[:space:]]*[=:]/' "$root_env" > "$temp_probe_env"
+  if [[ -n "$existing_project" ]]; then
+    cp "$root_env" "$temp_probe_env"
+  else
+    awk -v MODE=probe -f "$repo_root/scripts/compose-env-project.awk" "$root_env" > "$temp_probe_env"
+  fi
   chmod 600 "$temp_probe_env"
   if ! password_present="$(
     env -u COMPOSE_PROJECT_NAME -u POSTGRES_PASSWORD docker compose \
@@ -85,6 +97,16 @@ else
   password_present="no"
 fi
 
+if [[ -n "$default_project_volumes" && "$existing_project" != "$default_project" ]]; then
+  echo "An existing default Compose database volume was found. Set COMPOSE_PROJECT_NAME=$default_project and preserve its POSTGRES_PASSWORD, or migrate the database explicitly before initializing a new project." >&2
+  exit 1
+fi
+
+if [[ -n "$default_project_volumes" && "$password_present" != "yes" ]]; then
+  echo "An existing default Compose database volume was found, but the root .env has no resolved POSTGRES_PASSWORD. Restore the original password or migrate the database explicitly." >&2
+  exit 1
+fi
+
 if [[ "$password_present" != "yes" ]]; then
   if ! command -v openssl >/dev/null 2>&1; then
     echo "OpenSSL is required to generate a local PostgreSQL password." >&2
@@ -104,29 +126,12 @@ if [[ ! -e "$root_env" ]]; then
   temp_root_env=""
 elif [[ -z "$existing_project" || "$password_present" != "yes" ]]; then
   temp_root_env="$(mktemp "$repo_root/.env.XXXXXX")"
-  awk \
+  awk -v MODE=update \
     -v project_name="$project_name" \
     -v update_project="$([[ -z "$existing_project" ]] && printf yes || printf no)" \
     -v postgres_password="$postgres_password" \
-    -v update_password="$([[ "$password_present" == "yes" ]] && printf no || printf yes)" '
-      /^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROJECT_NAME[[:space:]]*[=:]/ {
-        if (update_project == "yes") print "COMPOSE_PROJECT_NAME=" project_name
-        else print
-        project_seen = 1
-        next
-      }
-      /^[[:space:]]*(export[[:space:]]+)?POSTGRES_PASSWORD[[:space:]]*=/ {
-        if (update_password == "yes") print "POSTGRES_PASSWORD=" postgres_password
-        else print
-        password_seen = 1
-        next
-      }
-      { print }
-      END {
-        if (!project_seen && update_project == "yes") print "COMPOSE_PROJECT_NAME=" project_name
-        if (!password_seen && update_password == "yes") print "POSTGRES_PASSWORD=" postgres_password
-      }
-    ' "$root_env" > "$temp_root_env"
+    -v update_password="$([[ "$password_present" == "yes" ]] && printf no || printf yes)" \
+    -f "$repo_root/scripts/compose-env-project.awk" "$root_env" > "$temp_root_env"
   chmod 600 "$temp_root_env"
   mv "$temp_root_env" "$root_env"
   temp_root_env=""
@@ -144,6 +149,8 @@ chmod 600 "$root_env" "$app_env"
 
 if [[ "$existing_project" == "$legacy_project" && "$existing_project" != "$project_name" ]]; then
   echo "Initialized environment while retaining legacy project $existing_project."
+elif [[ "$existing_project" == "$default_project" ]]; then
+  echo "Initialized environment while retaining default Compose project $existing_project."
 else
   echo "Initialized isolated Docker settings for $project_name."
 fi

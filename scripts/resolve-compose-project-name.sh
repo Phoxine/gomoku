@@ -4,24 +4,14 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 env_file="${1:-$repo_root/.env}"
 probe_file="$repo_root/scripts/compose-env-probe.yaml"
+dotenv_parser="$repo_root/scripts/compose-env-project.awk"
 
 if [[ ! -f "$env_file" || -L "$env_file" ]]; then
   echo "A local root .env file is required to resolve this worktree's Docker project." >&2
   exit 1
 fi
 
-if ! awk '
-  /^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROJECT_NAME[[:space:]]*[=:]/ {
-    value = $0
-    sub(/^[^=:]*[=:]/, "", value)
-    sub(/^[[:space:]]+/, "", value)
-    sub(/^#.*/, "", value)
-    sub(/[[:space:]]+#.*$/, "", value)
-    sub(/[[:space:]]+$/, "", value)
-    configured = value != "" && value != "\"\"" && value != "\047\047"
-  }
-  END { exit !configured }
-' "$env_file"; then
+if [[ "$(awk -v MODE=detect -f "$dotenv_parser" "$env_file")" != "yes" ]]; then
   exit 0
 fi
 
