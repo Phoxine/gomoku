@@ -1,6 +1,15 @@
 language: "en-US" # Have the AI respond in English
 reviews:
   profile: "chill"
+  request_changes_workflow: true
+  pre_merge_checks:
+    custom_checks:
+      - name: Major issues
+        mode: error
+        instructions: |
+          Fail if the pull request contains any unresolved critical or major
+          bug, security vulnerability, data loss risk, or issue that can break
+          a core user flow. Pass only when no such issues remain.
   path_instructions:
     - path: "src/**/*.py"
       instructions: |
