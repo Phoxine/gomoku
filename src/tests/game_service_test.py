@@ -25,17 +25,20 @@ def test_validate_move_accepts_empty_board_edges(x: int, y: int) -> None:
 
 @pytest.mark.parametrize("x,y", [(-1, 0), (0, -1), (15, 0), (0, 15)])
 def test_validate_move_rejects_out_of_bounds_coordinates(x: int, y: int) -> None:
+    """Reject coordinates outside the board bounds."""
     with pytest.raises(ValueError, match="between 0 and 14"):
         validate_move(initialize_board(), x, y, 1)
 
 
-@pytest.mark.parametrize("x,y", [(1.5, 2), (2, "3")])
+@pytest.mark.parametrize("x,y", [(1.5, 2), (2, "3"), (True, 2), (2, False)])
 def test_validate_move_rejects_non_integer_coordinates(x: int, y: int) -> None:
+    """Reject coordinate values that are not integers."""
     with pytest.raises(TypeError, match="integers"):
         validate_move(initialize_board(), x, y, 1)
 
 
 def test_validate_move_rejects_occupied_position() -> None:
+    """Reject a move that targets an occupied cell."""
     board = initialize_board()
     board[4][7] = 1
 
@@ -44,11 +47,13 @@ def test_validate_move_rejects_occupied_position() -> None:
 
 
 def test_validate_move_rejects_invalid_player() -> None:
+    """Reject player identifiers outside the supported range."""
     with pytest.raises(ValueError, match="Player"):
         validate_move(initialize_board(), 0, 0, 3)
 
 
 def test_validate_move_rejects_malformed_board() -> None:
+    """Reject boards that do not have the required dimensions."""
     with pytest.raises(ValueError, match="15 by 15"):
         validate_move([[EMPTY]], 0, 0, 1)
 
@@ -68,6 +73,7 @@ def test_place_stone_detects_win_in_all_four_directions(
     dx: int,
     dy: int,
 ) -> None:
+    """Detect a winning move along each supported direction."""
     board = initialize_board()
     for step in range(1, 5):
         board[7 - dy * step][7 - dx * step] = 1
@@ -76,6 +82,7 @@ def test_place_stone_detects_win_in_all_four_directions(
 
 
 def test_has_won_does_not_count_opponent_stones() -> None:
+    """Ensure stones belonging to the opponent break a winning line."""
     board = initialize_board()
     for x in range(4):
         board[0][x] = 1
@@ -85,6 +92,7 @@ def test_has_won_does_not_count_opponent_stones() -> None:
 
 
 def test_has_won_recognizes_six_or_more_consecutive_stones() -> None:
+    """Treat a line longer than five stones as a win."""
     board = initialize_board()
     for x in range(2, 8):
         board[7][x] = 2

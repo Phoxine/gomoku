@@ -8,6 +8,8 @@ services:
       - .:/workspace
     env_file:
       - ./src/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env file}@db:5432/gomoku
     depends_on:
       db:
         condition: service_healthy
@@ -18,9 +20,9 @@ services:
     environment:
       POSTGRES_DB: gomoku
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-development-password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env file}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

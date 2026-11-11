@@ -33,6 +33,7 @@ jobs:
 
       - name: Start Environment
         run: |
+          printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)" > .env
           cp src/.env.example src/.env
           docker compose up -d db app
 
@@ -41,13 +42,13 @@ jobs:
           docker compose exec -T db sh -c "until pg_isready -U postgres -d gomoku; do echo waiting for database; sleep 1; done"
 
       - name: Run Ruff Lint
-        run: docker compose exec -T app uvx ruff check app tests
+        run: docker compose exec -T app uv run ruff check app tests
 
       - name: Run Ruff Format Check
-        run: docker compose exec -T app uvx ruff format --check app tests
+        run: docker compose exec -T app uv run ruff format --check app tests
 
       - name: Run Tests with Coverage
-        run: docker compose exec -T app pytest --cov=app --cov-report=xml tests
+        run: docker compose exec -T app uv run pytest --cov=app --cov-report=xml tests
 
   docker-security:
     name: Docker Vulnerability Scan
@@ -59,7 +60,7 @@ jobs:
         run: docker build -t gomoku-app:latest -f docker/Dockerfile .
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: gomoku-app:latest
           format: table

@@ -12,7 +12,7 @@ matcher = "^Bash$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = "python \"$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_use_policy.py\""
+command = "uv run python \"$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_use_policy.py\""
 timeout = 30
 statusMessage = "Checking command policy"
 
