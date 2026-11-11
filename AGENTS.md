@@ -40,11 +40,24 @@ Supplemented by a Pre-Tool-Use command-text hook (not a replacement for file-acc
 
 ---
 
+## Environment Setup
+The development environment is entirely containerized. Do not install project dependencies or run databases on the local host.
+
+### Core Environment Variables & Multi-Worktree Isolation
+Each worktree must use its own Docker Compose project, environment files, containers, network, and database volume:
+- Run `bash scripts/init-worktree-env.sh` in each feature worktree before starting Docker Compose. It creates a local root `.env`, fills blank isolation settings, and copies `src/.env.example` to `src/.env` if needed.
+- `COMPOSE_PROJECT_NAME` belongs in the worktree's **root `.env`**. Compose reads it when naming the project; values in the app service's `env_file` (`src/.env`) are loaded too late to select the project.
+- Keep `POSTGRES_PASSWORD` in the root `.env`. Keep Django application settings such as `DJANGO_SECRET_KEY` and `DEBUG` in `src/.env`.
+- Compose supplies `DATABASE_URL` to the app and connects it to the `db` service on that worktree's private Compose network.
+- Do not publish the database port to the host. The app reaches Postgres using `db:5432`; each Compose project owns a separate network and `postgres_data` volume.
+- Use the worktree's root directory and its local environment files for all `docker compose` commands. Never symlink `.env` files between worktrees.
+
 ## 🔄 Quality Gates & Workflow Boundaries
-- **Testing & Formatting:** Every service function requires a corresponding unit test in [`src/tests/`](src/tests/) (e.g., `user_service_test.py`). When the project environment is running, the `Stop` hook ([.codex/hooks/stop-validation.sh](.codex/hooks/stop-validation.sh)) automatically enforces a full pipeline: **Ruff format check, Ruff linting, and Pytest**. If the Docker Compose file is missing or the `app` service is stopped, the hook skips validation; in such cases, developers must manually run these quality checks inside the container before committing.
+- **Testing & Formatting:** Every service function requires a corresponding unit test in [`src/tests/`](src/tests/) (e.g., `user_service_test.py`). When this worktree's app container is running, the `Stop` hook ([.codex/hooks/stop-validation.sh](.codex/hooks/stop-validation.sh)) checks formatting, lint, and tests against the container selected by this worktree's `COMPOSE_PROJECT_NAME`. If this worktree has no initialized environment or its app service is stopped, the hook skips validation.
+- **Worktree-aware development:** Every new branch and Git worktree must start from `main`, never from the currently checked-out feature or task branch. Synchronize `main` with `origin/main` first. Use a dedicated worktree per parallel task, with `feature/gomoku-<task>` for product features and `infra/<task>` for development tooling or infrastructure. Initialize that worktree's environment and start its own Docker Compose project before development.
 - **Self-Correction:** If the Stop hook fails, read the terminal output, fix the code/tests within the same session, and re-run until it passes 🟢.
 - **Boundaries:**
-  - ✅ **Always:** Work in feature branches, write unit tests in `src/tests/`, and rely on the `Stop` hook as primary validation.
-  - ⚠️ **Ask first:** Database schema changes, `AGENTS.md` updates, or adding dependencies to `pyproject.toml`.
-  - 🚫 **Never:** Bypass Stop hook failures, commit secrets, or push directly to `main`.
-- **Git & PR Workflow:** Create feature branches (`feature/gomoku-<task-name>`), commit atomically, and open PRs using `gh` CLI following [docs/codex/workflows/fix-issue.md](docs/codex/workflows/fix-issue.md) before final human review.
+  - ✅ **Always:** Work in task-appropriate branches inside dedicated worktrees, write unit tests in [`src/tests/`](src/tests/), and use the isolated container stack for the active worktree.
+  - ⚠️ **Ask first:** Database schema changes (especially when concurrent migrations may conflict), `AGENTS.md` updates, or adding dependencies to `pyproject.toml`.
+  - 🚫 **Never:** Share Docker Compose project names or database volumes between worktrees, commit secrets, or push directly to `main`.
+- **Git & PR Workflow:** Always branch from the synchronized `main` branch. Use `feature/gomoku-<task-name>` for product changes and `infra/<task-name>` for infrastructure changes, commit atomically, and open PRs using `gh` CLI following [`docs/codex/workflows/fix-issue.md`](docs/codex/workflows/fix-issue.md) before final human review.
