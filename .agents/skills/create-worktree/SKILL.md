@@ -18,10 +18,12 @@ docker compose up --build -d
 
 For infrastructure work, use the `infra/<task-slug>` branch namespace instead.
 
-The initializer creates a private root `.env` with a branch-specific `COMPOSE_PROJECT_NAME` and a generated PostgreSQL password when one is missing. It copies `src/.env.example` to `src/.env` if needed. Compose reads `COMPOSE_PROJECT_NAME` from the root `.env`; do not put it only in `src/.env`, because service `env_file` values do not select the Compose project. Never symlink either env file from another worktree.
+The initializer creates a private root `.env` with a `COMPOSE_PROJECT_NAME` derived from the readable branch name and a stable hash of the canonical worktree path. This prevents sanitized branch-name collisions. It generates a PostgreSQL password when one is missing and copies `src/.env.example` to `src/.env` if needed. Compose reads `COMPOSE_PROJECT_NAME` from the root `.env`; do not put it only in `src/.env`, because service `env_file` values do not select the Compose project. Never symlink either env file from another worktree.
 
 Each Compose project has its own containers, default network, and `postgres_data` volume. The database has no host-published port, and the worktree is mounted into only its own app container. Run Compose commands from the new worktree root so they use its configuration. If a future service needs a host-published port, assign a distinct per-worktree host port in the root `.env` before starting it.
 
 Tell the user the branch name, absolute worktree path, and Compose project name so another session can open that directory. Do not commit, push, merge, or remove worktrees unless requested.
+
+The Stop hook and initializer ask Docker Compose to parse `.env`, so supported quoted values and inline comments resolve consistently. The initializer cleans up its temporary root `.env` file on exit, and Git ignores root `.env.*` temporary files.
 
 For the environment variable split and cleanup behavior, see [`docs/codex/workflows/multi-session-worktrees.md`](../../../docs/codex/workflows/multi-session-worktrees.md).

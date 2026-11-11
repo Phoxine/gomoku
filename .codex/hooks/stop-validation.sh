@@ -25,7 +25,14 @@ if [[ ! -f "$env_file" ]]; then
   exit 0
 fi
 
-project_name="$(sed -n 's/^COMPOSE_PROJECT_NAME=//p' "$env_file" | tail -n 1)"
+project_name="$(
+  env -u COMPOSE_PROJECT_NAME docker compose \
+    --project-directory "$repo_root" \
+    --env-file "$env_file" \
+    -f "$compose_file" \
+    config --environment \
+    | awk -F= '$1 == "COMPOSE_PROJECT_NAME" { print substr($0, index($0, "=") + 1); exit }'
+)"
 if [[ ! "$project_name" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
   echo "Skipping final validation: this worktree has no valid COMPOSE_PROJECT_NAME in its root .env file." >&2
   printf '{}\n'
