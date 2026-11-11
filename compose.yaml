@@ -3,11 +3,11 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    working_dir: /workspace
+    working_dir: /workspace/src
     volumes:
       - .:/workspace
     env_file:
-      - .env
+      - ./src/.env
     depends_on:
       db:
         condition: service_healthy
