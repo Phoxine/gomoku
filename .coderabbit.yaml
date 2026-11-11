@@ -1,6 +1,6 @@
 language: "en-US" # Have the AI respond in English
 reviews:
-  profile: "custom"
+  profile: "chill"
   instructions: |
     You are a senior full-stack Python architect.
     Strictly read and follow the requirements in the root-level `AGENTS.md` file.
