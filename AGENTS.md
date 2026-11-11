@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Project Overview
-This is a web-based interactive Gomoku game built with Python3.14 + Django + Postgres + SqlAlchemy. It is developed and run entirely inside Docker containers.
+This is a web-based interactive Gomoku game built with Python3.14 + Django + Django ORM + Postgres. It is developed and run entirely inside Docker containers.
 
 ## Naming Conventions
 - File name: snake_case (ex: user_service.py)
@@ -70,3 +70,14 @@ UV workspace repo. Key paths:
 - **Services:**
   - `app`: The main Django application container.
   - `db`: A PostgreSQL database container with a persistent volume configured.
+
+## Git & Pull Request Workflow
+Agent has full permission to manage branches and create PRs. Follow these strict steps:
+
+1. **Create Branch:** Name standard `feature/gomoku-<task-name>` or `fix/<issue-name>`.
+   - Command: `git checkout -b feature/gomoku-core-logic`
+2. **Commit Changes:** Wrap code modifications in small, logical commits.
+   - Command: `git commit -am "feat: implement gomoku win-checking algorithm"`
+3. **Push & Create PR:** Push to remote and use GitHub CLI (`gh`) to create a PR.
+   - Command: `git push origin feature/gomoku-core-logic`
+   - Command: `gh pr create --title "feat: Gomoku Core Logic" --body "Implemented win-checking and board validation. Tests passed." --base main`
