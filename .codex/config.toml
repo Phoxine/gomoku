@@ -1,0 +1,26 @@
+model = "gpt-6-luna"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+project_root_markers = [".git"]
+
+[features]
+hooks = true
+
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "python \"$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_use_policy.py\""
+timeout = 30
+statusMessage = "Checking command policy"
+
+[[hooks.Stop]]
+matcher = ".*"
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = "bash .codex/hooks/stop-validation.sh"
+timeout = 60
+statusMessage = "Running final validation"
