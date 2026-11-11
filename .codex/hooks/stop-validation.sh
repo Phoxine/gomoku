@@ -25,21 +25,7 @@ if [[ ! -f "$env_file" ]]; then
   exit 0
 fi
 
-project_name="$(
-  env -u COMPOSE_PROJECT_NAME docker compose \
-    --project-directory "$repo_root" \
-    --env-file "$env_file" \
-    -f "$compose_file" \
-    config --environment \
-    | awk -F= '$1 == "COMPOSE_PROJECT_NAME" { print substr($0, index($0, "=") + 1); exit }'
-)"
-if [[ ! "$project_name" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
-  echo "Skipping final validation: this worktree has no valid COMPOSE_PROJECT_NAME in its root .env file." >&2
-  printf '{}\n'
-  exit 0
-fi
-
-compose=(docker compose --project-name "$project_name" --env-file "$env_file" -f "$compose_file")
+compose=(bash "$repo_root/scripts/compose.sh")
 
 if ! "${compose[@]}" ps --status running --services | grep -qx app; then
   echo "Skipping final validation: Docker Compose app service is not running for this worktree." >&2

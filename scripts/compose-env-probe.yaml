@@ -1,0 +1,3 @@
+services:
+  environment_probe:
+    image: scratch

@@ -2,117 +2,139 @@
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
-branch_name="$(git -C "$repo_root" branch --show-current)"
-temp_env=""
-
-cleanup_temp_env() {
-  if [[ -n "$temp_env" && -e "$temp_env" ]]; then
-    rm -f -- "$temp_env"
-  fi
-}
-
-trap cleanup_temp_env EXIT
-trap 'exit 1' HUP INT TERM
-
-if [[ -z "$branch_name" ]]; then
-  echo "Run this script from a feature branch, not a detached HEAD." >&2
-  exit 1
-fi
-
-project_suffix="$(printf '%s' "$branch_name" \
-  | tr '[:upper:]' '[:lower:]' \
-  | sed -E 's/[^a-z0-9_-]+/_/g; s/^[^a-z0-9]+//; s/_+$//')"
-if [[ -z "$project_suffix" ]]; then
-  echo "Could not derive a Docker project name from branch '$branch_name'." >&2
-  exit 1
-fi
-legacy_project_name="gomoku_${project_suffix}"
-project_suffix="${project_suffix:0:32}"
-
-worktree_path="$(cd "$repo_root" && pwd -P)"
-if command -v shasum >/dev/null 2>&1; then
-  worktree_hash="$(printf '%s' "$worktree_path" | shasum -a 256 | cut -c 1-16)"
-elif command -v sha256sum >/dev/null 2>&1; then
-  worktree_hash="$(printf '%s' "$worktree_path" | sha256sum | cut -c 1-16)"
-else
-  echo "A SHA-256 utility (shasum or sha256sum) is required to isolate worktrees." >&2
-  exit 1
-fi
-project_name="gomoku_${project_suffix}_${worktree_hash}"
-
 root_env="$repo_root/.env"
 app_env="$repo_root/src/.env"
+lock_dir="$repo_root/.worktree-env.lock"
+temp_root_env=""
+temp_app_env=""
+project_name="$(bash "$repo_root/scripts/worktree-project-name.sh")"
+legacy_project="$(bash "$repo_root/scripts/worktree-project-name.sh" legacy)"
+
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  echo "Another worktree environment initialization is running, or a stale lock exists at $lock_dir." >&2
+  exit 1
+fi
+
+# cleanup_worktree_env removes partial environment files and releases the initialization lock.
+# The EXIT trap calls it after successful initialization or any handled failure.
+cleanup_worktree_env() {
+  if [[ -n "$temp_root_env" && -e "$temp_root_env" ]]; then
+    rm -f -- "$temp_root_env"
+  fi
+  if [[ -n "$temp_app_env" && -e "$temp_app_env" ]]; then
+    rm -f -- "$temp_app_env"
+  fi
+  rmdir "$lock_dir" 2>/dev/null || true
+}
+
+trap cleanup_worktree_env EXIT
+trap 'exit 1' HUP INT TERM
+umask 077
 
 if [[ -L "$root_env" || -L "$app_env" ]]; then
   echo "Worktree .env files must be local files, not symlinks shared with another worktree." >&2
   exit 1
 fi
 
-if [[ ! -e "$root_env" ]]; then
+if [[ -e "$root_env" ]]; then
+  if ! existing_project="$(bash "$repo_root/scripts/resolve-compose-project-name.sh" "$root_env")"; then
+    echo "Could not safely resolve this worktree's existing Compose project name." >&2
+    exit 1
+  fi
+
+  if [[ -n "$existing_project" && "$existing_project" != "$project_name" && "$existing_project" != "$legacy_project" ]]; then
+    echo "The root .env belongs to a different Docker project. Keep its database volume and resolve the project-name mismatch explicitly." >&2
+    exit 1
+  fi
+
+  if [[ "$existing_project" == "$legacy_project" && "$existing_project" != "$project_name" ]]; then
+    echo "Keeping the legacy Compose project name to preserve its existing database volume. Migrate the database explicitly before switching to the hashed project name." >&2
+  fi
+
+  if ! password_present="$(
+    env -u COMPOSE_PROJECT_NAME -u POSTGRES_PASSWORD docker compose \
+      --project-directory "$repo_root" \
+      --env-file "$root_env" \
+      -f "$repo_root/scripts/compose-env-probe.yaml" \
+      config --environment \
+      | awk -F= '
+        $1 == "POSTGRES_PASSWORD" {
+          resolved_value = substr($0, index($0, "=") + 1)
+          found = 1
+        }
+        END {
+          if (found && length(resolved_value) > 0) print "yes"
+          else print "no"
+        }
+      '
+  )"; then
+    echo "Docker Compose could not read environment values from the root .env file." >&2
+    exit 1
+  fi
+else
+  existing_project=""
+  password_present="no"
+fi
+
+if [[ "$password_present" != "yes" ]]; then
   if ! command -v openssl >/dev/null 2>&1; then
     echo "OpenSSL is required to generate a local PostgreSQL password." >&2
     exit 1
   fi
-  umask 077
-  printf 'COMPOSE_PROJECT_NAME=%s\nPOSTGRES_PASSWORD=%s\n' \
-    "$project_name" "$(openssl rand -hex 32)" > "$root_env"
+  postgres_password="$(openssl rand -hex 32)"
 else
-  existing_project="$(
-    env -u COMPOSE_PROJECT_NAME docker compose \
-      --project-directory "$repo_root" \
-      --env-file "$root_env" \
-      -f "$repo_root/compose.yaml" \
-      config --environment \
-      | awk -F= '$1 == "COMPOSE_PROJECT_NAME" { print substr($0, index($0, "=") + 1); exit }'
-  )"
-  if [[ -n "$existing_project" && "$existing_project" != "$project_name" && "$existing_project" != "$legacy_project_name" ]]; then
-    echo "The root .env belongs to a different Docker project. Keep its secrets and set COMPOSE_PROJECT_NAME=$project_name manually." >&2
-    exit 1
-  fi
+  postgres_password=""
+fi
 
-  needs_password="false"
-  if ! grep -q '^POSTGRES_PASSWORD=.' "$root_env"; then
-    if ! command -v openssl >/dev/null 2>&1; then
-      echo "OpenSSL is required to generate a local PostgreSQL password." >&2
-      exit 1
-    fi
-    needs_password="true"
-    postgres_password="$(openssl rand -hex 32)"
-  fi
-
-  if [[ "$existing_project" != "$project_name" || "$needs_password" == "true" ]]; then
-    temp_env="$(mktemp "$repo_root/.env.XXXXXX")"
-    awk -v project_name="$project_name" -v postgres_password="${postgres_password:-}" '
-      /^COMPOSE_PROJECT_NAME=/ {
-        print "COMPOSE_PROJECT_NAME=" project_name
+if [[ ! -e "$root_env" ]]; then
+  temp_root_env="$(mktemp "$repo_root/.env.XXXXXX")"
+  printf 'COMPOSE_PROJECT_NAME=%s\nPOSTGRES_PASSWORD=%s\n' \
+    "$project_name" "$postgres_password" > "$temp_root_env"
+  chmod 600 "$temp_root_env"
+  mv "$temp_root_env" "$root_env"
+  temp_root_env=""
+elif [[ -z "$existing_project" || "$password_present" != "yes" ]]; then
+  temp_root_env="$(mktemp "$repo_root/.env.XXXXXX")"
+  awk \
+    -v project_name="$project_name" \
+    -v update_project="$([[ -z "$existing_project" ]] && printf yes || printf no)" \
+    -v postgres_password="$postgres_password" \
+    -v update_password="$([[ "$password_present" == "yes" ]] && printf no || printf yes)" '
+      /^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROJECT_NAME[[:space:]]*=/ {
+        if (update_project == "yes") print "COMPOSE_PROJECT_NAME=" project_name
+        else print
         project_seen = 1
         next
       }
-      /^POSTGRES_PASSWORD=/ {
-        if (postgres_password != "") {
-          print "POSTGRES_PASSWORD=" postgres_password
-        } else {
-          print
-        }
+      /^[[:space:]]*(export[[:space:]]+)?POSTGRES_PASSWORD[[:space:]]*=/ {
+        if (update_password == "yes") print "POSTGRES_PASSWORD=" postgres_password
+        else print
         password_seen = 1
         next
       }
       { print }
       END {
-        if (!project_seen) print "COMPOSE_PROJECT_NAME=" project_name
-        if (!password_seen && postgres_password != "") print "POSTGRES_PASSWORD=" postgres_password
+        if (!project_seen && update_project == "yes") print "COMPOSE_PROJECT_NAME=" project_name
+        if (!password_seen && update_password == "yes") print "POSTGRES_PASSWORD=" postgres_password
       }
-    ' "$root_env" > "$temp_env"
-    chmod 600 "$temp_env"
-    mv "$temp_env" "$root_env"
-    temp_env=""
-  fi
+    ' "$root_env" > "$temp_root_env"
+  chmod 600 "$temp_root_env"
+  mv "$temp_root_env" "$root_env"
+  temp_root_env=""
 fi
 
 if [[ ! -e "$app_env" ]]; then
-  cp "$repo_root/src/.env.example" "$app_env"
+  temp_app_env="$(mktemp "$repo_root/src/.env.XXXXXX")"
+  cp "$repo_root/src/.env.example" "$temp_app_env"
+  chmod 600 "$temp_app_env"
+  mv "$temp_app_env" "$app_env"
+  temp_app_env=""
 fi
 
 chmod 600 "$root_env" "$app_env"
 
-echo "Initialized isolated Docker settings for $project_name."
+if [[ "$existing_project" == "$legacy_project" && "$existing_project" != "$project_name" ]]; then
+  echo "Initialized environment while retaining legacy project $existing_project."
+else
+  echo "Initialized isolated Docker settings for $project_name."
+fi
