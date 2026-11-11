@@ -27,9 +27,9 @@ Refer to modular configuration files for deep technical alignment:
 ---
 
 ## 🔒 Security & Secrets Management
-Enforced via Pre-Tool-Use hooks:
+Supplemented by a Pre-Tool-Use command-text hook (not a replacement for file-access controls):
 - **Zero Raw SQL:** Use Django ORM or parameterized queries; raw string formatting is prohibited.
-- **Credential Protection:** Never read, output, or commit `src/.env` or sensitive key/pem files. See `.codex/rules/security.md`.
+- **Credential Protection:** Never read, output, or commit `src/.env` or sensitive key/pem files. The hook blocks selected command patterns only; it is not comprehensive file-access protection. See `.codex/rules/security.md`.
 
 ---
 
@@ -41,9 +41,9 @@ Enforced via Pre-Tool-Use hooks:
 ---
 
 ## 🔄 Quality Gates & Workflow Boundaries
-- **Testing & Formatting:** Every service function requires a corresponding unit test in `src/tests/` (e.g., `user_service_test.py`). Code validation (Ruff, Pytest) runs automatically via the `Stop` hook (`.codex/hooks/stop-validation.sh`).
+- **Testing & Formatting:** Every service function requires a corresponding unit test in `src/tests/` (e.g., `user_service_test.py`). Developers must run Ruff lint/format checks and Pytest manually inside the app container when the project environment is available. The `Stop` hook only runs Pytest when a root-level Docker Compose file exists and its `app` service is running; otherwise it skips validation (`.codex/hooks/stop-validation.sh`).
 - **Boundaries:**
-  - ✅ **Always:** Work in feature branches, write unit tests, rely on `Stop` hooks.
+  - ✅ **Always:** Work in feature branches, write unit tests, and use the `Stop` hook as supplemental validation.
   - ⚠️ **Ask first:** Database schema changes, `AGENTS.md` updates, or adding dependencies to `pyproject.toml`.
   - 🚫 **Never:** Commit secrets, push directly to `main`, or bypass test failures.
 - **Git & PR Workflow:** Create feature branches (`feature/gomoku-<task-name>`), commit atomically, and open PRs using `gh` CLI following `docs/codex/workflows/fix-issue.md` before final human review.

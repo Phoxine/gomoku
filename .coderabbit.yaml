@@ -1,11 +1,12 @@
 language: "en-US" # Have the AI respond in English
 reviews:
   profile: "chill"
-  instructions: |
-    You are a senior full-stack Python architect.
-    Strictly read and follow the requirements in the root-level `AGENTS.md` file.
-    When reviewing pull requests, pay particular attention to:
-    1. Compliance with the Naming Conventions for variables, functions, and classes.
-    2. Strict use of native Python 3.14 type hints.
-    3. Whether core Gomoku logic is fully isolated from Django and implemented in `services/`.
-    4. Any potential SQL injection risks.
+  path_instructions:
+    - path: "src/**/*.py"
+      instructions: |
+        You are a senior full-stack Python architect. Follow the root-level `AGENTS.md` requirements.
+        Pay particular attention to:
+        1. Naming conventions for variables, functions, and classes.
+        2. Strict use of native Python 3.14 type hints.
+        3. Whether core Gomoku logic is isolated from Django and implemented in `services/`.
+        4. Potential SQL injection risks.

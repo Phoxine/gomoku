@@ -2,7 +2,6 @@ model = "gpt-6-luna"
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 
-model_instructions_file = "../AGENTS.md"
 project_root_markers = [".git"]
 
 [features]
@@ -13,7 +12,7 @@ matcher = "^Bash$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = "uv run python .codex/hooks/pre_tool_use_policy.py"
+command = "python \"$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_use_policy.py\""
 timeout = 30
 statusMessage = "Checking command policy"
 
