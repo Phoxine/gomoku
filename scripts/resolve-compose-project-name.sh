@@ -20,15 +20,13 @@ if ! project_name="$(
     --project-directory "$repo_root" \
     --env-file "$env_file" \
     -f "$probe_file" \
-    config --environment \
-    | awk -F= '
-      $1 == "COMPOSE_PROJECT_NAME" {
-        project_name = substr($0, index($0, "=") + 1)
-        found = 1
-      }
+    config --format yaml \
+    | awk '
+      /^name: / { project_name = substr($0, 7); found = 1 }
+      $1 == "gomoku.project-present:" && $2 == "present" { configured = 1 }
       END {
         if (!found) exit 1
-        print project_name
+        if (configured) print project_name
       }
     '
 )"; then

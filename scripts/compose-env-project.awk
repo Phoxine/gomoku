@@ -10,46 +10,36 @@ function assignment_value(line, key, value, pattern) {
   return value
 }
 
-function has_unclosed_single_quote(line, value, i, character, pattern) {
+# Return the opening quote only when its value continues onto another line.
+function unclosed_quote(line, value, quote, i, character, pattern) {
   pattern = "^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[=:]"
-  if (line !~ pattern) return 0
-
+  if (line !~ pattern) return ""
   value = line
   sub(pattern, "", value)
   sub(/^[[:space:]]+/, "", value)
-  if (substr(value, 1, 1) != "'") return 0
-
+  quote = substr(value, 1, 1)
+  if (quote != "'" && quote != "\"") return ""
   for (i = 2; i <= length(value); i++) {
     character = substr(value, i, 1)
-    if (character == "\\") {
-      i++
-    } else if (character == "'") {
-      return 0
-    }
+    if (character == "\\") i++
+    else if (character == quote) return ""
   }
-  return 1
+  return quote
 }
 
-function closes_single_quote(line, i, character) {
-  for (i = 1; i <= length(line); i++) {
-    character = substr(line, i, 1)
-    if (character == "\\") {
-      i++
-    } else if (character == "'") {
-      return 1
+function update_quote_state(line, i, character) {
+  if (in_quote != "") {
+    for (i = 1; i <= length(line); i++) {
+      character = substr(line, i, 1)
+      if (character == "\\") i++
+      else if (character == in_quote) {
+        in_quote = ""
+        skip_multiline = 0
+        break
+      }
     }
-  }
-  return 0
-}
-
-function update_quote_state(line) {
-  if (in_single_quote) {
-    if (closes_single_quote(line)) {
-      in_single_quote = 0
-      skip_multiline = 0
-    }
-  } else if (has_unclosed_single_quote(line)) {
-    in_single_quote = 1
+  } else {
+    in_quote = unclosed_quote(line)
   }
 }
 
@@ -71,7 +61,7 @@ function normalized_project_value(line, value) {
 {
   line = $0
 
-  if (in_single_quote) {
+  if (in_quote != "") {
     if ((MODE == "probe" || MODE == "update") && !skip_multiline) print line
     else if (MODE != "probe" && MODE != "update" && MODE != "detect") print line
     update_quote_state(line)
@@ -88,8 +78,8 @@ function normalized_project_value(line, value) {
 
   if (MODE == "probe" && project_assignment) {
     print "COMPOSE_PROJECT_NAME="
-    skip_multiline = has_unclosed_single_quote(line)
-    if (skip_multiline) in_single_quote = 1
+    in_quote = unclosed_quote(line)
+    skip_multiline = in_quote != ""
     next
   }
 
@@ -97,8 +87,8 @@ function normalized_project_value(line, value) {
     project_seen = 1
     if (update_project == "yes") {
       print "COMPOSE_PROJECT_NAME=" project_name
-      skip_multiline = has_unclosed_single_quote(line)
-      if (skip_multiline) in_single_quote = 1
+      in_quote = unclosed_quote(line)
+      skip_multiline = in_quote != ""
     } else {
       print line
       update_quote_state(line)
@@ -109,8 +99,8 @@ function normalized_project_value(line, value) {
   if (MODE == "update" && is_assignment(line, "POSTGRES_PASSWORD")) {
     if (update_password == "yes") {
       print "POSTGRES_PASSWORD=" postgres_password
-      skip_multiline = has_unclosed_single_quote(line)
-      if (skip_multiline) in_single_quote = 1
+      in_quote = unclosed_quote(line)
+      skip_multiline = in_quote != ""
     } else {
       print line
       update_quote_state(line)

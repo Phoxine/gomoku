@@ -64,27 +64,17 @@ if [[ -e "$root_env" ]]; then
   fi
 
   temp_probe_env="$(mktemp "$repo_root/.env.XXXXXX")"
-  if [[ -n "$existing_project" ]]; then
-    cp "$root_env" "$temp_probe_env"
-  else
-    awk -v MODE=probe -f "$repo_root/scripts/compose-env-project.awk" "$root_env" > "$temp_probe_env"
-  fi
+  cp "$root_env" "$temp_probe_env"
   chmod 600 "$temp_probe_env"
   if ! password_present="$(
     env -u COMPOSE_PROJECT_NAME -u POSTGRES_PASSWORD docker compose \
       --project-directory "$repo_root" \
       --env-file "$temp_probe_env" \
       -f "$repo_root/scripts/compose-env-probe.yaml" \
-      config --environment \
-      | awk -F= '
-        $1 == "POSTGRES_PASSWORD" {
-          resolved_value = substr($0, index($0, "=") + 1)
-          found = 1
-        }
-        END {
-          if (found && length(resolved_value) > 0) print "yes"
-          else print "no"
-        }
+      config --format yaml \
+      | awk '
+        $1 == "gomoku.password-present:" && $2 == "present" { found = 1 }
+        END { print found ? "yes" : "no" }
       '
   )"; then
     echo "Docker Compose could not read environment values from the root .env file." >&2
@@ -102,8 +92,16 @@ if [[ -n "$default_project_volumes" && "$existing_project" != "$default_project"
   exit 1
 fi
 
-if [[ -n "$default_project_volumes" && "$password_present" != "yes" ]]; then
-  echo "An existing default Compose database volume was found, but the root .env has no resolved POSTGRES_PASSWORD. Restore the original password or migrate the database explicitly." >&2
+selected_project="${existing_project:-$project_name}"
+if ! selected_project_volumes="$(docker volume ls --quiet \
+  --filter "label=com.docker.compose.project=$selected_project" \
+  --filter label=com.docker.compose.volume=postgres_data)"; then
+  echo "Could not inspect Docker volumes to protect the selected Compose database." >&2
+  exit 1
+fi
+
+if [[ ( -n "$default_project_volumes" || -n "$selected_project_volumes" ) && "$password_present" != "yes" ]]; then
+  echo "An existing Compose database volume was found, but the root .env has no resolved POSTGRES_PASSWORD. Restore the original password or migrate the database explicitly." >&2
   exit 1
 fi
 

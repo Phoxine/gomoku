@@ -25,12 +25,21 @@ if [[ ! -f "$env_file" ]]; then
   exit 0
 fi
 
+if ! project_name="$(bash "$repo_root/scripts/resolve-compose-project-name.sh" "$env_file")"; then
+  echo "Final validation failed: unable to resolve this worktree's Compose project." >&2
+  exit 2
+fi
+if [[ -z "$project_name" ]]; then
+  echo "Skipping final validation: root .env has no nonempty COMPOSE_PROJECT_NAME." >&2
+  printf '{}\n'
+  exit 0
+fi
+
 compose=(bash "$repo_root/scripts/compose.sh")
 
 if ! running_services="$("${compose[@]}" ps --status running --services)"; then
-  echo "Skipping final validation: unable to query Docker Compose services for this worktree." >&2
-  printf '{}\n'
-  exit 0
+  echo "Final validation failed: unable to query Docker Compose services for this worktree." >&2
+  exit 2
 fi
 
 if ! grep -qx app <<< "$running_services"; then

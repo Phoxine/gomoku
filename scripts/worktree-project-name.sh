@@ -8,7 +8,7 @@ if [[ "$mode" == "directory" ]]; then
   directory_name="${repo_root##*/}"
   directory_project="$(printf '%s' "$directory_name" \
     | tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9_-]+/-/g; s/^[^a-z0-9]+//; s/[-_]+$//')"
+    | sed -E 's/[^a-z0-9_-]+//g; s/^[^a-z0-9]+//')"
   if [[ -z "$directory_project" ]]; then
     echo "Could not derive Docker's default project name from '$directory_name'." >&2
     exit 1
