@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    working_dir: /workspace/src
+    volumes:
+      - .:/workspace
+    env_file:
+      - ./src/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env file}@db:5432/gomoku
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "while :; do sleep 3600; done"]
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: gomoku
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env file}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gomoku"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
