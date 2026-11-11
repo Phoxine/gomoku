@@ -1,85 +1,49 @@
 # AGENTS.md
 
 ## Project Overview
-This is a web-based interactive Gomoku game built with Python3.14 + Django + Django ORM + Postgres. It is developed and run entirely inside Docker containers.
+This is a web-based interactive Gomoku game built with Python 3.14 + Django + Django ORM + Postgres inside Docker containers.
 
-## Naming Conventions
-- File name: snake_case (ex: user_service.py)
-- Function name: snake_case (type hint needed, including parameter & return type)
-- Class name: PascalCase (ex: UserService)
-- Environment variable: UPPER_SNAKE_CASE (ex: DATABASE_URL)
+## Codex Configuration Index
+Refer to modular configuration files for deep technical alignment:
+- **Sandbox & Strategy:** `.codex/config.toml` (`workspace-write` sandbox).
+- **Automated Guardrails:** `.codex/hooks/pre_tool_use_policy.py` and `.codex/hooks/stop-validation.sh`.
+- **Specialized Workflows:** `.agents/skills/review/SKILL.md` and `docs/codex/workflows/fix-issue.md`.
 
-## Environment Setup
-The development environment is entirely containerized. Do not install dependencies or run databases on the local host.
+---
 
-### 🔑 Core Environment Variables
-Agent must ensure `src/.env` is created from `src/.env.example` before starting containers. Key variables include:
-- `DATABASE_URL`: Django ORM connection string targeting the `db` service (e.g., `postgresql+psycopg://postgres:password@db:5432/gomoku`).
-- `DJANGO_SECRET_KEY`: Secure key for Django application.
-- `DEBUG`: Set to `True` for development logs.
+## 🎯 Gomoku Core Domain Rules
+*High-value business logic constraints that must be enforced during feature development:*
+- **Board Grid Dimensions:** Fixed **15x15 grid** (coordinates `x, y` must be integers ranging from `0` to `14`).
+- **Win Condition Algorithm:** A player wins when **5 continuous stones of the same color** align horizontally, vertically, or diagonally.
+- **Framework-Agnostic Logic:** Game state and win-checking algorithms **must reside in `src/app/services/game_service.py`** without Django or database dependencies.
 
-### 🛠️ Container Lifecycle
-Always interact with the environment using Docker Compose:
-- **Initialize & Start:** `docker compose up --build -d`
-- **Stop Environment:** `docker compose down`
-- **View Logs:** `docker compose logs -f`
+---
 
-## Commands
-All linting, formatting, migrations, and testing must be executed inside the running `app` container:
+## 🛠️ Architecture & Coding Standards
+- **Naming Conventions:** Pythonic `snake_case` for files/functions (with type hints) and `PascalCase` for classes.
+- **Layer Isolation:** Django views/APIs (`src/app/api/`) call `services` only; `services` communicate with databases via `repositories`. **Never import Django ORM Models directly into the API layer.** See `.codex/rules/api.md`.
+- **Type Hinting:** Strictly use Python 3.14 native type hinting (e.g., `list[int]`, `dict[str, int]`).
 
-- **Lint with ruff:** `docker compose exec app uvx ruff check --fix src/app/`
-- **Format with ruff:** `docker compose exec app uvx ruff format src/app/`
-- **Run tests:** `docker compose exec app uv run pytest`
-- **Database migrations:** `docker compose exec app uv run python src/app/manage.py migrate`
+---
 
-## Repository Structure
-UV workspace repo. Key paths:
- - src/app/ -- all components of the application
-     - models/ -- Django ORM models (User, Game, Move, History)
-     - repositories/ -- database access layer (user_repository, game_repository, move_repository)
-     - services/ -- main business logic (user_service, game_service, move_service)
-     - api/ -- Django API endpoints (user_api, game_api, move_api)
-     - template/ -- Django templates for frontend
- - src/tests/ -- service unit tests, named after the service file
- - src/.env -- local environment configuration (never commit)
- - docs/ -- documentation files
- - docker/ -- Dockerfile for containerization
+## 🔒 Security & Secrets Management
+Enforced via Pre-Tool-Use hooks:
+- **Zero Raw SQL:** Use Django ORM or parameterized queries; raw string formatting is prohibited.
+- **Credential Protection:** Never read, output, or commit `src/.env` or sensitive key/pem files. See `.codex/rules/security.md`.
 
-## Testing Requirements
-- Every service function must have unit tests.
-- Put tests in `src/tests/` with the same name as the service file (ex: user_service_test.py).
-- Run tests via Docker using `docker compose exec app uv run pytest`.
+---
 
-## Security Requirements
-- **SQL Injection Prevention:** Always use Django's ORM or parameterized queries. Never use raw string formatting for SQL execution.
-- **Input Validation:** Validate board coordinates (e.g., `x, y` must be integers between 0 and 14) at the API layer before passing to services.
-- **Secrets Management:** Never commit `.env` or hardcode credentials in any files.
+## 📂 Repository Structure Key Paths
+- `src/app/` -- Main application source code (`api/`, `services/`, `repositories/`, `models/`).
+- `src/tests/` -- Application unit tests.
+- `docs/` & `.codex/` -- Documentation, rules, and configuration hooks.
 
-## Coding Standards
-- **Type Hinting:** Strictly use Python 3.14 native type hinting (e.g., `list[int]` instead of `List[int]`).
-- **Architecture Isolation:** Django views/APIs must only call `services`. `services` must talk to databases only via `repositories`. Never import models directly in `api/`.
-- **Gomoku Logic:** Game state calculations (win checking, valid moves) must reside entirely in `src/app/services/game_service.py` and remain framework-agnostic.
+---
 
-## Boundaries
-- ✅ **Always:** Write application code to `src/app/` and tests to `src/tests/`, run tests inside Docker before commits, follow naming conventions.
-- ⚠️ **Ask first:** Database schema changes, `AGENTS.md` changes, adding dependencies to `pyproject.toml`.
-- 🚫 **Never:** Commit secrets or API keys.
-
-## Docker Deployment and Development Guidelines
-- **Base image:** Use `python:3.14-slim`.
-- **Dependency installation:** Copy `pyproject.toml` and `uv.lock` and use `uv` to install dependencies inside the Dockerfile, caching this layer before copying `src/app/` source code.
-- **Services:**
-  - `app`: The main Django application container.
-  - `db`: A PostgreSQL database container with a persistent volume configured.
-
-## Git and Pull Request Workflow
-Agent has full permission to manage branches and create PRs using the host's `git` and `gh` CLI. Follow this workflow:
-
-1. **Checkout Branch:** Always create a new branch from `main`. Do not work directly on `main`.
-   - Pattern: `feature/gomoku-<task-name>`
-   - Command: `git checkout -b feature/gomoku-core-logic`
-2. **Commit Changes:** Group code modifications into logical, atomic commits.
-   - Command: `git commit -am "feat: implement win-checking algorithm"`
-3. **Push & Create PR:** Push to remote and use GitHub CLI (`gh`) to open a PR.
-   - Command: `git push origin feature/gomoku-core-logic`
-   - Command: `gh pr create --title "feat: Gomoku Core Logic" --body "Implemented game service logic and verified via pytest inside docker." --base main`
+## 🔄 Quality Gates & Workflow Boundaries
+- **Testing & Formatting:** Every service function requires a corresponding unit test in `src/tests/` (e.g., `user_service_test.py`). Code validation (Ruff, Pytest) runs automatically via the `Stop` hook (`.codex/hooks/stop-validation.sh`).
+- **Boundaries:**
+  - ✅ **Always:** Work in feature branches, write unit tests, rely on `Stop` hooks.
+  - ⚠️ **Ask first:** Database schema changes, `AGENTS.md` updates, or adding dependencies to `pyproject.toml`.
+  - 🚫 **Never:** Commit secrets, push directly to `main`, or bypass test failures.
+- **Git & PR Workflow:** Create feature branches (`feature/gomoku-<task-name>`), commit atomically, and open PRs using `gh` CLI following `docs/codex/workflows/fix-issue.md` before final human review.
