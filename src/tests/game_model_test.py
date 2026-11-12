@@ -58,7 +58,7 @@ try:
     from copy import deepcopy
     valid = [[0 for _ in range(15)] for _ in range(15)]
     invalid_boards = [None, {}, [], [0] * 15, valid[:14]]
-    for invalid_value in (3, -1, True, None, "1", [], {}):
+    for invalid_value in (3, -1, True, None, "1", [], {}, 0.0, 1.0, 2.0):
         board = deepcopy(valid)
         board[0][0] = invalid_value
         invalid_boards.append(board)
@@ -79,9 +79,6 @@ try:
                 pass
             else:
                 raise AssertionError(f"invalid board accepted: {board!r}")
-    float_board = deepcopy(valid)
-    float_board[0][0] = 1.0
-    Game.objects.create(board=float_board)
     assert Permission.objects.filter(
         content_type__app_label='game', codename='add_game',
     ).exists()
