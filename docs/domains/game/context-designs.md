@@ -12,6 +12,7 @@ validate_board(board: object) -> None
 validate_move(board: Board, x: int, y: int, player: int) -> None
 place_stone(board: Board, x: int, y: int, player: int) -> bool
 has_won(board: Board, x: int, y: int, player: int) -> bool
+apply_move(state: GameState, move: Move) -> GameState
 ```
 
 `validate_board` rejects malformed boards or cells other than integer `0`, `1`, and `2`. `validate_move` calls it before accessing the board. `validate_move` raises an error for invalid coordinates, players, board dimensions, or occupied positions. `place_stone` validates the move, updates the board, and returns whether it wins. `has_won` counts consecutive `player` stones through `(x, y)` without checking `board[y][x]`; callers must ensure that cell already contains `player`. `place_stone` sets the cell before calling `has_won`.
@@ -41,7 +42,7 @@ def apply_move(state: GameState, move: Move) -> GameState: ...
 | Type | Field | Type | Meaning |
 | --- | --- | --- | --- |
 | `GameState` | `board` | `Board` | Fifteen rows and columns, indexed as `board[y][x]`. |
-| `GameState` | `current_player` | `Player` | Side that will make the next move. |
+| `GameState` | `current_player` | `Player` | Side to move while in progress; terminal states retain the last mover. |
 | `GameState` | `status` | `GameStatus` | `in_progress`, `won`, or `draw`. |
 | `GameState` | `winner` | `Player \| None` | Winning side; set only when status is `won`. |
 | `Move` | `x`, `y` | `int` | Column and row of the requested position, each from `0` to `14`. |
@@ -58,7 +59,7 @@ An illegal move raises `IllegalMoveError`, a `ValueError` subclass, with a machi
 | `occupied` | The target cell already contains a stone. |
 | `game_finished` | The state is already won or drawn. |
 
-The state-transition operation is a contract for the next implementation step; this change defines its shared types and failure semantics without implementing turn changes, win/draw transitions, or persistence.
+`apply_move` validates that the game is in progress and the requested coordinates identify an empty board cell. It places the stone for `state.current_player`, checks for a win before checking for a full-board draw, and returns a new state. An in-progress game switches to the other player; a winning or drawing move retains the last mover in `current_player`. The input state and each of its board rows remain unchanged. Malformed state data raises `ValueError`; expected illegal moves raise `IllegalMoveError` with the reason codes above.
 
 ## Board Data
 
