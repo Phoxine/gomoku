@@ -8,12 +8,13 @@ The game service initializes boards, validates moves, places stones, and checks 
 
 ```python
 initialize_board() -> Board
+validate_board(board: object) -> None
 validate_move(board: Board, x: int, y: int, player: int) -> None
 place_stone(board: Board, x: int, y: int, player: int) -> bool
 has_won(board: Board, x: int, y: int, player: int) -> bool
 ```
 
-`validate_move` raises an error for invalid coordinates, players, board dimensions, or occupied positions. `place_stone` validates the move, updates the board, and returns whether it wins. `has_won` counts consecutive `player` stones through `(x, y)` without checking `board[y][x]`; callers must ensure that cell already contains `player`. `place_stone` sets the cell before calling `has_won`.
+`validate_board` rejects malformed boards or cells other than integer `0`, `1`, and `2`. `validate_move` calls it before accessing the board. `validate_move` raises an error for invalid coordinates, players, board dimensions, or occupied positions. `place_stone` validates the move, updates the board, and returns whether it wins. `has_won` counts consecutive `player` stones through `(x, y)` without checking `board[y][x]`; callers must ensure that cell already contains `player`. `place_stone` sets the cell before calling `has_won`.
 
 ## Board Data
 

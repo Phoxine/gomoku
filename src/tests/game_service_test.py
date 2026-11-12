@@ -52,6 +52,18 @@ def test_validate_move_rejects_invalid_player() -> None:
         validate_move(initialize_board(), 0, 0, 3)
 
 
+@pytest.mark.parametrize("player", [True, False, 1.0, 2.0])
+def test_place_stone_rejects_non_integer_player_without_mutation(
+    player: object,
+) -> None:
+    board = initialize_board()
+
+    with pytest.raises(ValueError, match="Player"):
+        place_stone(board, 0, 0, player)
+
+    assert board == initialize_board()
+
+
 def test_validate_move_rejects_malformed_board() -> None:
     """Reject boards that do not have the required dimensions."""
     with pytest.raises(ValueError, match="15 by 15"):
@@ -98,3 +110,16 @@ def test_has_won_recognizes_six_or_more_consecutive_stones() -> None:
         board[7][x] = 2
 
     assert has_won(board, 4, 7, 2) is True
+
+
+def test_validate_board_rejects_invalid_shapes_and_cells() -> None:
+    from app.domain.game.service.game_service import initialize_board, validate_board
+
+    validate_board(initialize_board())
+    invalid_cell = initialize_board()
+    invalid_cell[0][0] = 3
+    boolean_cell = initialize_board()
+    boolean_cell[0][0] = True
+    for board in (None, [], [[0] * 15] * 14, invalid_cell, boolean_cell):
+        with pytest.raises(ValueError):
+            validate_board(board)
