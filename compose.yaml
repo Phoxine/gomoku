@@ -9,7 +9,7 @@ services:
     env_file:
       - ./src/.env
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env file}@db:5432/gomoku
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env file}@db:5432/gomoku
     depends_on:
       db:
         condition: service_healthy
