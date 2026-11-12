@@ -12,6 +12,21 @@ def initialize_board() -> Board:
     return [[EMPTY for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 
 
+def validate_board(board: object) -> None:
+    """Raise ValueError unless board is a 15 by 15 grid of valid stones."""
+    if (
+        not isinstance(board, list)
+        or len(board) != BOARD_SIZE
+        or any(not isinstance(row, list) or len(row) != BOARD_SIZE for row in board)
+        or any(
+            type(cell) is not int or cell not in (0, 1, 2)
+            for row in board
+            for cell in row
+        )
+    ):
+        raise ValueError("Board must be 15 by 15 with cells 0, 1, or 2")
+
+
 def validate_move(board: Board, x: int, y: int, player: int) -> None:
     """Raise an error when a move is invalid or the board is malformed."""
     if (
@@ -25,8 +40,7 @@ def validate_move(board: Board, x: int, y: int, player: int) -> None:
         raise ValueError("Coordinates must be between 0 and 14")
     if player not in (1, 2):
         raise ValueError("Player must be 1 or 2")
-    if len(board) != BOARD_SIZE or any(len(row) != BOARD_SIZE for row in board):
-        raise ValueError("Board must be 15 by 15")
+    validate_board(board)
     if board[y][x] != EMPTY:
         raise ValueError("Position is already occupied")
 

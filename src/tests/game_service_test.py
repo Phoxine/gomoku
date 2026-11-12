@@ -98,3 +98,16 @@ def test_has_won_recognizes_six_or_more_consecutive_stones() -> None:
         board[7][x] = 2
 
     assert has_won(board, 4, 7, 2) is True
+
+
+def test_validate_board_rejects_invalid_shapes_and_cells() -> None:
+    from app.domain.game.service.game_service import initialize_board, validate_board
+
+    validate_board(initialize_board())
+    invalid_cell = initialize_board()
+    invalid_cell[0][0] = 3
+    boolean_cell = initialize_board()
+    boolean_cell[0][0] = True
+    for board in (None, [], [[0] * 15] * 14, invalid_cell, boolean_cell):
+        with pytest.raises(ValueError):
+            validate_board(board)

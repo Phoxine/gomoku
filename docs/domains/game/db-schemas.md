@@ -5,7 +5,7 @@ The `games` table stores each game. Its model and initial migration are in `app.
 | Column | Type | Nullable | Default | Constraints | Description |
 | --- | --- | --- | --- | --- | --- |
 | `id` | UUID | No | Generated UUID4 | Primary key | Game identifier. |
-| `board` | JSON | No | Fresh 15×15 empty board | None | Board cells, initially all zero. |
+| `board` | JSON | No | Fresh 15×15 empty board | 15 rows of 15 numeric cells with values `0`, `1`, or `2`. | Board cells, initially all zero. |
 | `current_player` | positive small integer | No | `1` | Must be `1` or `2`. | Player whose turn it is. |
 | `status` | VARCHAR(16) | No | `in_progress` | Must be `in_progress`, `won`, or `draw`. | Game status. |
 | `winner` | positive small integer | Yes | `null` | Must be `1` or `2` for a won game and null otherwise. | Winning player, if any. |
@@ -17,3 +17,5 @@ The `games` table stores each game. Its model and initial migration are in `app.
 | Primary key index | `id` | Primary key | Identifies a game. |
 
 Check constraints enforce the player, status, winner, and status/winner consistency rules. The table has no foreign keys.
+
+The PostgreSQL board constraint applies to all database writes. JSONB treats numerically equal values such as `1` and `1.0` alike; the game service additionally requires Python integer cells and rejects booleans and floats.

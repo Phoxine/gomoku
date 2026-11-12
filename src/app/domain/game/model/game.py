@@ -3,10 +3,8 @@ import uuid
 from django.db import models
 from django.db.models import Q
 
-
-def empty_board() -> list[list[int]]:
-    """Return a fresh empty 15 by 15 board for a new game."""
-    return [[0 for _ in range(15)] for _ in range(15)]
+from app.domain.game.model.board_constraint import board_constraint
+from app.domain.game.service.game_service import initialize_board
 
 
 class Game(models.Model):
@@ -16,7 +14,7 @@ class Game(models.Model):
         DRAW = "draw", "Draw"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    board = models.JSONField(default=empty_board)
+    board = models.JSONField(default=initialize_board)
     current_player = models.PositiveSmallIntegerField(default=1)
     status = models.CharField(
         max_length=16,
@@ -30,6 +28,7 @@ class Game(models.Model):
     class Meta:
         db_table = "games"
         constraints = [
+            board_constraint(),
             models.CheckConstraint(
                 condition=Q(current_player__in=(1, 2)),
                 name="game_current_player_valid",
@@ -44,7 +43,7 @@ class Game(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    Q(status="won", winner__in=(1, 2))
+                    Q(status="won", winner__isnull=False, winner__in=(1, 2))
                     | Q(status__in=("in_progress", "draw"), winner__isnull=True)
                 ),
                 name="game_status_winner_consistent",
