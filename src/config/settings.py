@@ -1,6 +1,7 @@
 """Django settings for the Gomoku project."""
 
 import os
+from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
@@ -48,7 +49,10 @@ if debug_value not in ("true", "false"):
 DEBUG = debug_value == "true"
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
-INSTALLED_APPS = ["app.domain.game.apps.GomokuConfig"]
+INSTALLED_APPS = [
+    "django.contrib.staticfiles",
+    "app.domain.game.apps.GomokuConfig",
+]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -61,3 +65,13 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {"default": database_config(required_env("DATABASE_URL"))}
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 USE_TZ = True
+
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [Path(__file__).resolve().parent.parent / "app" / "static"]
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [Path(__file__).resolve().parent.parent / "app" / "template"],
+        "APP_DIRS": True,
+    }
+]

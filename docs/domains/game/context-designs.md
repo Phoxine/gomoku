@@ -92,3 +92,9 @@ class GameApplicationService:
 A new game has an empty board, player 1 to move, `in_progress` status, and no winner. Missing identifiers raise `GameNotFoundError`, a `LookupError`. `get_for_update` requires an active transaction. Callers performing read-modify-write operations must hold that lock until `save` completes. `place_move` opens an atomic transaction, locks the game row, validates and places the current player's stone using the game service, and saves the resulting state. A winning move sets the winner and status; a full board without a winner is a draw; otherwise the turn advances. Finished games and illegal coordinates or occupied cells raise `IllegalMoveError` with the reasons listed above. Failure rolls back the update. Concurrent moves for one game are serialized by the row lock and validated against the latest committed state; different games can proceed independently.
 
 The application service calls `apply_move` to apply the state transition.
+
+## Web Interface
+
+The browser interface creates and loads games through the [game API](apis.md) and renders the 15×15 board, current turn, and win or draw result. It stores the last game ID in browser local storage so the game can be restored when the page is reloaded. A game ID can also be entered to load an existing game. Errors are shown to the player, and the browser obtains a CSRF cookie before sending state-changing requests.
+
+Games have no account or participant authorization. Anyone with a game ID can access and play that game. The interface is intended for two people taking turns on the same device; it does not receive real-time updates from other clients.
