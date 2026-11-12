@@ -2,7 +2,7 @@ import uuid
 
 from django.db import migrations, models
 
-import app.models.game
+import app.domain.game.model.game
 
 
 class Migration(migrations.Migration):
@@ -23,7 +23,10 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-                ("board", models.JSONField(default=app.models.game.empty_board)),
+                (
+                    "board",
+                    models.JSONField(default=app.domain.game.model.game.empty_board),
+                ),
                 ("current_player", models.PositiveSmallIntegerField(default=1)),
                 (
                     "status",
@@ -72,9 +75,7 @@ class Migration(migrations.Migration):
             constraint=models.CheckConstraint(
                 condition=(
                     models.Q(status="won", winner__in=(1, 2))
-                    | models.Q(
-                        status__in=("in_progress", "draw"), winner__isnull=True
-                    )
+                    | models.Q(status__in=("in_progress", "draw"), winner__isnull=True)
                 ),
                 name="game_status_winner_consistent",
             ),
