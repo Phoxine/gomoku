@@ -13,7 +13,7 @@ place_stone(board: Board, x: int, y: int, player: int) -> bool
 has_won(board: Board, x: int, y: int, player: int) -> bool
 ```
 
-`validate_move` raises an error for invalid coordinates, players, board dimensions, or occupied positions. `place_stone` validates the move, updates the board, and returns whether it wins. `has_won` checks the stone at the specified position.
+`validate_move` raises an error for invalid coordinates, players, board dimensions, or occupied positions. `place_stone` validates the move, updates the board, and returns whether it wins. `has_won` counts consecutive `player` stones through `(x, y)` without checking `board[y][x]`; callers must ensure that cell already contains `player`. `place_stone` sets the cell before calling `has_won`.
 
 ## Board Data
 
