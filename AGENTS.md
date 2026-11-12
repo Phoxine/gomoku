@@ -15,13 +15,13 @@ Refer to modular configuration files for deep technical alignment:
 *High-value business logic constraints that must be enforced during feature development:*
 - **Board Grid Dimensions:** Fixed **15x15 grid** (coordinates `x, y` must be integers ranging from `0` to `14`).
 - **Win Condition Algorithm:** A player wins when **5 continuous stones of the same color** align horizontally, vertically, or diagonally.
-- **Framework-Agnostic Logic:** Game state and win-checking algorithms **must reside in [src/app/services/game_service.py](src/app/services/game_service.py)** without Django or database dependencies.
+- **Framework-Agnostic Logic:** Game state and win-checking algorithms **must reside in [src/app/domain/game/service/game_service.py](src/app/domain/game/service/game_service.py)** without Django or database dependencies.
 
 ---
 
 ## 🛠️ Architecture & Coding Standards
 - **Naming Conventions:** Pythonic `snake_case` for files/functions (with type hints) and `PascalCase` for classes.
-- **Layer Isolation:** Django views/APIs ([`src/app/api/`](src/app/api/)) call `services` only; `services` communicate with databases via `repositories`. **Never import Django ORM Models directly into the API layer.** See [.codex/rules/api.md](.codex/rules/api.md).
+- **Layer Isolation:** Django views/APIs ([`src/app/api/`](src/app/api/)) call domain services only; domain services communicate with databases via domain repositories. **Never import Django ORM Models directly into the API layer.** See [.codex/rules/api.md](.codex/rules/api.md).
 - **Type Hinting:** Strictly use Python 3.14 native type hinting (e.g., `list[int]`, `dict[str, int]`).
 
 ---
@@ -34,7 +34,7 @@ Supplemented by a Pre-Tool-Use command-text hook (not a replacement for file-acc
 ---
 
 ## 📂 Repository Structure Key Paths
-- [`src/app/`](src/app/) -- Main application source code ([`api/`](src/app/api/), [`services/`](src/app/services/), [`repositories/`](src/app/repositories/), [`models/`](src/app/models/)).
+- [`src/app/`](src/app/) -- Main application source code: `api/` and `template/` sit directly under `app/`; domain code belongs under [`domain/`](src/app/domain/), organized by domain (for example, `domain/game/service/`, `domain/game/model/`, and `domain/game/repository/`). Tests remain under [`src/tests/`](src/tests/).
 - [`src/tests/`](src/tests/) -- Application unit tests.
 - [`docs/`](docs/) & [`.codex/`](.codex/) -- Documentation, rules, and configuration hooks.
 
