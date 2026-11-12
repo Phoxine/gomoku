@@ -35,3 +35,19 @@ class GameResponse:
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ErrorResponse:
+    error: str
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class CsrfResponse:
+    detail: str = "CSRF cookie set"
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
