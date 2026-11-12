@@ -13,6 +13,7 @@
   let busy = false;
   let csrfReady = false;
   const cells = [];
+  let focusedCell = 0;
 
   function cookie(name) {
     const value = document.cookie.split("; ").find((item) => item.startsWith(`${name}=`));
@@ -51,6 +52,13 @@
     return response.json();
   }
 
+  function nearestAvailable(index) {
+    return cells.filter(({ button }) => !button.disabled).sort((a, b) => {
+      const distance = (cell) => Math.abs(cell.x - index % 15) + Math.abs(cell.y - Math.floor(index / 15));
+      return distance(a) - distance(b);
+    })[0];
+  }
+
   function render() {
     const active = game && game.status === "in_progress";
     for (const { button, x, y } of cells) {
@@ -59,6 +67,11 @@
       button.disabled = busy || !active || value !== 0;
       button.setAttribute("aria-label", `Row ${y + 1}, column ${x + 1}, ${value === 1 ? "black stone" : value === 2 ? "white stone" : "empty"}`);
     }
+    if (!cells[focusedCell] || cells[focusedCell].button.disabled) {
+      const available = nearestAvailable(focusedCell);
+      if (available) focusedCell = available.y * 15 + available.x;
+    }
+    for (const cell of cells) cell.button.tabIndex = cell.y * 15 + cell.x === focusedCell ? 0 : -1;
     newButton.disabled = busy;
     loadButton.disabled = busy;
     refreshButton.disabled = busy || !game;
@@ -69,17 +82,25 @@
     const help = document.getElementById("status-help");
     const stone = document.getElementById("status-stone");
     stone.classList.toggle("white", !!game && (game.winner || game.current_player) === 2);
-    if (!game) { caption.textContent = "READY TO PLAY"; text.textContent = "Start a new game"; help.textContent = "Black plays first. Good luck!"; }
-    else if (game.status === "won") { caption.textContent = "GAME OVER"; text.textContent = `${game.winner === 1 ? "Black" : "White"} wins!`; help.textContent = "Five in a row. Well played."; }
-    else if (game.status === "draw") { caption.textContent = "GAME OVER"; text.textContent = "It's a draw"; help.textContent = "A full board and a well-matched game."; }
-    else { caption.textContent = "CURRENT TURN"; text.textContent = `${game.current_player === 1 ? "Black" : "White"} to play`; help.textContent = "Choose an empty intersection."; }
+    const status = (value) => { if (text.textContent !== value) text.textContent = value; };
+    if (!game) { caption.textContent = "READY TO PLAY"; status("Start a new game"); help.textContent = "Black plays first. Good luck!"; }
+    else if (game.status === "won") { caption.textContent = "GAME OVER"; status(`${game.winner === 1 ? "Black" : "White"} wins!`); help.textContent = "Five in a row. Well played."; }
+    else if (game.status === "draw") { caption.textContent = "GAME OVER"; status("It's a draw"); help.textContent = "A full board and a well-matched game."; }
+    else { caption.textContent = "CURRENT TURN"; status(`${game.current_player === 1 ? "Black" : "White"} to play`); help.textContent = "Choose an empty intersection."; }
   }
 
-  async function perform(action) {
+  async function perform(action, restoreBoardFocus = false) {
     if (busy) return;
     busy = true; message.textContent = ""; render();
     try { await action(); } catch (error) { message.textContent = error instanceof Error ? error.message : "Could not connect. Please try again."; }
-    finally { busy = false; render(); }
+    finally {
+      busy = false; render();
+      if (restoreBoardFocus && (!document.activeElement || document.activeElement === document.body)) {
+        const available = nearestAvailable(focusedCell);
+        if (available) available.button.focus();
+        else newButton.focus();
+      }
+    }
   }
 
   async function load(id) {
@@ -92,11 +113,31 @@
     for (let x = 0; x < 15; x++) {
       const button = document.createElement("button");
       button.type = "button";
-      button.addEventListener("click", () => perform(async () => {
+      button.addEventListener("focus", () => { focusedCell = y * 15 + x; render(); });
+      button.addEventListener("keydown", (event) => {
+        const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+        const direction = directions[event.key];
+        if (!direction) return;
+        event.preventDefault();
+        if (direction[0]) {
+          for (let index = y * 15 + x + direction[0]; index >= 0 && index < cells.length; index += direction[0]) {
+            if (!cells[index].button.disabled) { cells[index].button.focus(); break; }
+          }
+        } else {
+          for (let nextY = y + direction[1]; nextY >= 0 && nextY < 15; nextY += direction[1]) {
+            const next = cells[nextY * 15 + x].button;
+            if (!next.disabled) { next.focus(); break; }
+          }
+        }
+      });
+      button.addEventListener("click", () => {
+        const restoreFocus = document.activeElement === button;
+        return perform(async () => {
         game = await request(`/api/v1/games/${game.id}/moves/`, {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x, y }),
         });
-      }));
+        }, restoreFocus);
+      });
       board.appendChild(button); cells.push({ button, x, y });
     }
   }

@@ -25,7 +25,24 @@ function page({ saved = null, responder }) {
       this.classList = { toggle() {} };
       this.value = "";
       this.textContent = "";
-      this.disabled = false;
+      this._disabled = false;
+      this.tabIndex = 0;
+    }
+    get disabled() { return this._disabled; }
+    set disabled(value) {
+      this._disabled = value;
+      if (value && document.activeElement === this) document.activeElement = null;
+    }
+    focus() {
+      if (!this.disabled) {
+        document.activeElement = this;
+        this.listeners.focus?.();
+      }
+    }
+    keydown(key) {
+      let prevented = false;
+      this.listeners.keydown?.({ key, preventDefault() { prevented = true; } });
+      return prevented;
     }
     setAttribute(name, value) { this[name] = value; }
     appendChild(child) { this.children.push(child); }
@@ -35,6 +52,7 @@ function page({ saved = null, responder }) {
   const elements = new Map();
   const document = {
     cookie: "",
+    activeElement: null,
     getElementById(name) {
       if (!elements.has(name)) elements.set(name, new Element());
       return elements.get(name);
@@ -56,7 +74,7 @@ function page({ saved = null, responder }) {
     return responder(url, options);
   }
   vm.runInNewContext(source, { document, localStorage, fetch, navigator: {}, console });
-  return { elements, values, calls };
+  return { document, elements, values, calls };
 }
 
 function response(body, status = 200) {
@@ -80,7 +98,8 @@ test("creates a game, stores it, and posts a move with CSRF", async () => {
   assert.equal(app.elements.get("status-text").textContent, "Black to play");
   assert.equal(board.children[0].disabled, false);
 
-  await board.children[0].click();
+  board.children[0].click();
+  await new Promise((resolve) => setImmediate(resolve));
   const move = app.calls.find((call) => call.url.endsWith("/moves/"));
   assert.equal(move.url, `/api/v1/games/${id}/moves/`);
   assert.equal(move.options.headers["X-CSRFToken"], "test-token");
@@ -106,11 +125,129 @@ test("restores a saved game and preserves it when a move fails", async () => {
   assert.equal(board.children[0].className, "cell black");
   assert.equal(app.elements.get("status-text").textContent, "White to play");
 
-  await board.children[1].click();
+  board.children[1].click();
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(app.elements.get("message").textContent,
     "That intersection is already occupied. Refresh the game and try another.");
   assert.equal(board.children[0].className, "cell black");
   assert.equal(board.children[1].className, "cell");
   assert.equal(app.elements.get("status-text").textContent, "White to play");
   assert.equal(app.values.get("gomoku.gameId"), id);
+});
+
+
+test("arrow navigation skips occupied cells and stays within the board", async () => {
+  const initial = state();
+  initial.board[0][1] = 2;
+  initial.board[1][2] = 1;
+  for (let x = 3; x < 15; x++) initial.board[0][x] = 1;
+  const app = page({ responder: () => response(initial, 201) });
+  await app.elements.get("new-game").click();
+  const cells = app.elements.get("board").children;
+  cells[0].focus();
+  assert.equal(app.document.activeElement, cells[0]);
+  assert.equal(cells[0].keydown("ArrowRight"), true);
+  assert.equal(app.document.activeElement, cells[2]);
+  assert.deepEqual(cells.filter((cell) => cell.tabIndex === 0), [cells[2]]);
+  assert.equal(cells[2].keydown("ArrowRight"), true);
+  assert.equal(app.document.activeElement, cells[15]);
+  assert.equal(cells[15].keydown("ArrowLeft"), true);
+  assert.equal(app.document.activeElement, cells[2]);
+  assert.equal(cells[2].keydown("ArrowDown"), true);
+  assert.equal(app.document.activeElement, cells[32]);
+  cells[0].focus();
+  assert.equal(cells[0].keydown("ArrowUp"), true);
+  assert.equal(app.document.activeElement, cells[0]);
+  cells[224].focus();
+  assert.equal(cells[224].keydown("ArrowRight"), true);
+  assert.equal(app.document.activeElement, cells[224]);
+});
+
+test("keyboard move restores focus after pending success and failed moves", async () => {
+  let resolveMove;
+  let mode = "pending";
+  const app = page({
+    responder(url) {
+      if (!url.endsWith("/moves/")) return response(state(), 201);
+      if (mode === "pending") return new Promise((resolve) => { resolveMove = resolve; });
+      return response({ error: "occupied" }, 409);
+    },
+  });
+  await app.elements.get("new-game").click();
+  const cells = app.elements.get("board").children;
+  cells[0].focus();
+  cells[0].click();
+  // The CSRF fetch completes before the move request is issued.
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(cells[0].disabled, true);
+  assert.equal(cells[1].disabled, true);
+  assert.notEqual(app.document.activeElement, cells[0]);
+  resolveMove(response(state(1)));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(cells[0].disabled, true);
+  assert.ok(cells.includes(app.document.activeElement));
+  assert.equal(app.document.activeElement.disabled, false);
+
+  mode = "failure";
+  const selected = app.document.activeElement;
+  selected.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(app.document.activeElement, selected);
+  assert.equal(selected.disabled, false);
+});
+
+test("terminal move returns keyboard focus to New game", async () => {
+  const won = state(1);
+  won.status = "won";
+  won.winner = 1;
+  const app = page({
+    responder(url) { return url.endsWith("/moves/") ? response(won) : response(state(), 201); },
+  });
+  await app.elements.get("new-game").click();
+  const first = app.elements.get("board").children[0];
+  first.focus();
+  first.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(app.elements.get("status-text").textContent, "Black wins!");
+  assert.equal(app.document.activeElement, app.elements.get("new-game"));
+});
+
+
+test("a pending move does not steal focus after the player moves elsewhere", async () => {
+  let resolveMove;
+  const app = page({
+    responder(url) {
+      if (url.endsWith("/moves/")) return new Promise((resolve) => { resolveMove = resolve; });
+      return response(state(), 201);
+    },
+  });
+  await app.elements.get("new-game").click();
+  const first = app.elements.get("board").children[0];
+  first.focus();
+  first.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  const input = app.elements.get("game-id");
+  input.focus();
+  resolveMove(response(state(1)));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(app.document.activeElement, input);
+});
+
+test("horizontal navigation reaches the only other empty cell on a nearly full board", async () => {
+  const nearlyFull = state();
+  nearlyFull.board = Array.from({ length: 15 }, () => Array(15).fill(1));
+  nearlyFull.board[0][0] = 0;
+  nearlyFull.board[14][14] = 0;
+  const app = page({ responder: () => response(nearlyFull, 201) });
+  await app.elements.get("new-game").click();
+  const cells = app.elements.get("board").children;
+  cells[0].focus();
+  cells[0].keydown("ArrowRight");
+  assert.equal(app.document.activeElement, cells[224]);
+  cells[224].keydown("ArrowRight");
+  assert.equal(app.document.activeElement, cells[224]);
+  cells[224].keydown("ArrowLeft");
+  assert.equal(app.document.activeElement, cells[0]);
+  cells[0].keydown("ArrowLeft");
+  assert.equal(app.document.activeElement, cells[0]);
 });
