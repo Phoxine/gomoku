@@ -1,6 +1,7 @@
 """Isolated tests for game application service orchestration."""
 
 from contextlib import nullcontext
+from types import ModuleType
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
@@ -13,7 +14,7 @@ from app.domain.game.state import GameState, GameStatus, IllegalMoveError, Move
 
 
 @pytest.fixture
-def service_module():
+def service_module() -> ModuleType:
     if not settings.configured:
         settings.configure(SECRET_KEY="test", INSTALLED_APPS=["app.domain.game"])
         django.setup()
@@ -22,7 +23,9 @@ def service_module():
     return application_service
 
 
-def test_create_game_initializes_and_returns_repository_result(service_module) -> None:
+def test_create_game_initializes_and_returns_repository_result(
+    service_module: ModuleType,
+) -> None:
     repository = Mock()
     result = (uuid4(), GameState(initialize_board(), 1, GameStatus.IN_PROGRESS))
     repository.create.return_value = result
@@ -31,7 +34,7 @@ def test_create_game_initializes_and_returns_repository_result(service_module) -
     repository.create.assert_called_once_with(result[1])
 
 
-def test_get_game_returns_repository_state(service_module) -> None:
+def test_get_game_returns_repository_state(service_module: ModuleType) -> None:
     repository = Mock()
     game_id = uuid4()
     state = GameState(initialize_board(), 1, GameStatus.IN_PROGRESS)
@@ -42,7 +45,7 @@ def test_get_game_returns_repository_state(service_module) -> None:
 
 
 def test_place_move_locks_and_saves_transition_inside_transaction(
-    service_module,
+    service_module: ModuleType,
 ) -> None:
     repository = Mock()
     game_id = uuid4()
@@ -68,7 +71,7 @@ def test_place_move_locks_and_saves_transition_inside_transaction(
     ]
 
 
-def test_place_move_does_not_save_illegal_move(service_module) -> None:
+def test_place_move_does_not_save_illegal_move(service_module: ModuleType) -> None:
     repository = Mock()
     board = initialize_board()
     board[4][3] = 1
