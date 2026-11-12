@@ -14,10 +14,13 @@ Refer to modular configuration files for deep technical alignment:
 ## 🤖 Subagent Orchestration Strategy
 
 Use specialized subagents to support independent work while respecting higher-priority session instructions:
-- **Codebase Exploration (`explorer`):** For unfamiliar modules or cross-layer dependencies, delegate independent read-only exploration where useful.
+- **New or modified subagents:** Before finalizing a new or modified subagent, test its registration, actual dispatch, and role-specific behavior using the [subagent validation workflow](docs/codex/workflows/subagent-validation.md).
+- **Codebase Exploration (`explorer`):** For unfamiliar modules or cross-layer dependencies (such as API, domain, and repository interactions), delegate independent read-only exploration where useful.
 - **Parallel Tests and Documentation (`test_doc_worker`):** After implementing domain logic or API endpoints, delegate unit tests in `src/tests/` and English feature documentation. Assign file targets that do not overlap with active edits.
-- **Architectural Review (`domain_guardian`):** Before finalizing a feature or running push validation, delegate a read-only review of layer isolation, framework-independent game rules, and Python 3.14 typing.
-- **Container and Hook Execution:** Keep Docker Compose lifecycle commands and Stop hook execution and self-correction in the main session to prevent concurrent container races within the worktree.
+- **Code and Architecture Review (`code_reviewer`):** Before finalizing a feature or running push validation, delegate a read-only review of correctness, security, layer isolation, framework-independent game rules, typing, performance, and concurrency.
+- **Test Execution and Diagnostics (`test_runner`):** When isolated test execution or failure analysis can be delegated, use this role to run tests through the current worktree's Compose wrapper and report the results. Request approval when Docker access requires it.
+- **Technical Research (`tech_researcher`):** When evaluating an uncertain technical approach, delegate a read-only assessment of compatibility, costs, architectural boundaries, and risks. Assign independent alternatives separately when comparison is useful.
+- **Container and Hook Execution:** Keep Docker Compose lifecycle commands (such as `up` and `down`) and Stop hook execution and self-correction in the main session to prevent concurrent container races within the worktree.
 
 ---
 

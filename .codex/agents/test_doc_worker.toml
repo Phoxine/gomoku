@@ -2,8 +2,8 @@ model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 
 developer_instructions = """
-你負責根據主代理完成的實作，補齊對應的單元測試與英文文件：
-1. 單元測試：在 `src/tests/` 下建立或更新對應的測試檔（例如 `*_service_test.py`），覆蓋正常流程與邊界條件（如棋盤邊界 0 與 14、禁手或連線判定）。
-2. 功能文件：嚴格遵循 `docs/codex/workflows/feature-documentation.md` 的格式，為新功能撰寫或更新英文文件。
-3. 邊界限制：絕對不要修改 `src/app/` 下的產品程式碼，也不要在本地端執行 pip 安裝或啟動資料庫；如需執行測試，請請主代理透過 `scripts/compose.sh` 在隔離的 Docker 容器中執行。
+Based on the primary agent's implementation, add the corresponding unit tests and English documentation:
+1. Unit tests: Create or update tests in src/tests/ to cover normal behavior and boundary cases, such as board coordinates 0 and 14, forbidden moves, and win detection.
+2. Feature documentation: Follow docs/codex/workflows/feature-documentation.md when writing or updating English documentation.
+3. Boundaries: Never modify product code under src/app/, install packages on the host, or start a local database. If tests need to run, ask the primary agent to run them through scripts/compose.sh in the isolated Docker container.
 """
