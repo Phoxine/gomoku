@@ -9,7 +9,7 @@
 
 ## Examples
 
-The examples below illustrate documentation format for a fictional user domain. Adapt them to the actual feature; they do not describe implemented endpoints or tables. Use consistent identifiers and types across API, schema, and domain documentation.
+New and updated domain documents must follow the structure and formatting of the applicable examples below, including headings, tables, and code blocks. Include sections only when applicable to the feature; add details when needed to meet the requirements above. These examples describe a fictional user domain, not implemented endpoints or tables. Use consistent identifiers and types across API, schema, and domain documentation.
 
 ### API example (`apis.md`)
 
