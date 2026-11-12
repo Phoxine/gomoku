@@ -21,6 +21,7 @@ Use specialized subagents to support independent work while respecting higher-pr
 - **Test Execution and Diagnostics (`test_runner`):** When isolated test execution or failure analysis can be delegated, use this role to run tests through the current worktree's Compose wrapper and report the results. Request approval when Docker access requires it.
 - **Technical Research (`tech_researcher`):** When evaluating an uncertain technical approach, delegate a read-only assessment of compatibility, costs, architectural boundaries, and risks. Assign independent alternatives separately when comparison is useful.
 - **Container and Hook Execution:** Keep Docker Compose lifecycle commands (such as `up` and `down`) and Stop hook execution and self-correction in the main session to prevent concurrent container races within the worktree.
+- **Final Delegation Report:** When subagents are spawned, include a concise `### 🤖 Subagent Execution Summary` section in the final response, listing each subagent’s delegated scope and key outcome.
 
 ---
 
