@@ -1,0 +1,6 @@
+services:
+  environment_probe:
+    image: scratch
+    labels:
+      gomoku.password-present: ${POSTGRES_PASSWORD:+present}
+      gomoku.project-present: ${COMPOSE_PROJECT_NAME:+present}

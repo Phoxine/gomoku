@@ -18,22 +18,46 @@ if [[ -z "$compose_file" ]]; then
   exit 0
 fi
 
-if ! docker compose -f "$compose_file" ps --status running --services | grep -qx app; then
-  echo "Skipping final validation: Docker Compose app service is not running." >&2
+env_file="$repo_root/.env"
+if [[ ! -f "$env_file" ]]; then
+  echo "Skipping final validation: this worktree has no root .env file." >&2
+  printf '{}\n'
+  exit 0
+fi
+
+if ! project_name="$(bash "$repo_root/scripts/resolve-compose-project-name.sh" "$env_file")"; then
+  echo "Final validation failed: unable to resolve this worktree's Compose project." >&2
+  exit 2
+fi
+if [[ -z "$project_name" ]]; then
+  echo "Skipping final validation: root .env has no nonempty COMPOSE_PROJECT_NAME." >&2
+  printf '{}\n'
+  exit 0
+fi
+
+compose=(bash "$repo_root/scripts/compose.sh")
+
+if ! running_services="$("${compose[@]}" ps --status running --services)"; then
+  echo "Final validation failed: unable to query Docker Compose services for this worktree." >&2
+  exit 2
+fi
+
+if ! grep -qx app <<< "$running_services"; then
+  echo "Skipping final validation: Docker Compose app service is not running for this worktree." >&2
   printf '{}\n'
   exit 0
 fi
 
 # 1. Validate code formatting
 echo "🧼 Checking code formatting with ruff..." >&2
-docker compose -f "$compose_file" exec -T app uv run ruff format --check app/ tests/ >&2 || exit 2
+"${compose[@]}" exec -T app uv run ruff format --check app/ tests/ >&2 || exit 2
 
 # 2. Perform static analysis and linting
 echo "🔍 Linting code with ruff..." >&2
-docker compose -f "$compose_file" exec -T app uv run ruff check app/ tests/ >&2 || exit 2
+"${compose[@]}" exec -T app uv run ruff check app/ tests/ >&2 || exit 2
 
 # 3. Execute unit tests
 echo "🧪 Running unit tests with pytest..." >&2
-docker compose -f "$compose_file" exec -T app uv run pytest >&2 || exit 2
+"${compose[@]}" exec -T app uv run pytest >&2 || exit 2
 
 printf '{}\n'
