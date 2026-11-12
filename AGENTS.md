@@ -35,6 +35,7 @@ Use specialized subagents to support independent work while respecting higher-pr
 ## 🛠️ Architecture & Coding Standards
 - **Naming Conventions:** Pythonic `snake_case` for files/functions (with type hints) and `PascalCase` for classes.
 - **Layer Isolation:** Django views/APIs ([`src/app/api/`](src/app/api/)) call domain services only; domain services communicate with databases via domain repositories. **Never import Django ORM Models directly into the API layer.** See [.codex/rules/api.md](.codex/rules/api.md).
+- **DTOs:** Enforce DTO usage for API requests and responses; never return ORM models directly (see [.codex/rules/api.md](.codex/rules/api.md)).
 - **Type Hinting:** Strictly use Python 3.14 native type hinting (e.g., `list[int]`, `dict[str, int]`).
 
 ---
@@ -42,7 +43,7 @@ Use specialized subagents to support independent work while respecting higher-pr
 ## 🔒 Security & Secrets Management
 Supplemented by a Pre-Tool-Use command-text hook (not a replacement for file-access controls):
 - **Zero Raw SQL:** Use Django ORM or parameterized queries; raw string formatting is prohibited.
-- **Credential Protection:** Never read, output, or commit `src/.env` or sensitive key/pem files. The hook blocks selected command patterns only; it is not comprehensive file-access protection. See [.codex/rules/security.md](.codex/rules/security.md).
+- **Credential Protection:** Never read, output, or commit any `.env`, `*.pem`, `*.key`, or credential files. The hook blocks selected command patterns only; it is not comprehensive file-access protection. See [.codex/rules/security.md](.codex/rules/security.md).
 
 ---
 
