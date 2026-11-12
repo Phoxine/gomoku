@@ -28,6 +28,4 @@ class GameApplicationService:
     def place_move(self, game_id: UUID, move: Move) -> GameState:
         with transaction.atomic():
             state = self.repository.get_for_update(game_id)
-            return self.repository.save(
-                game_id, game_service.apply_move(state, move)
-            )
+            return self.repository.save(game_id, game_service.apply_move(state, move))

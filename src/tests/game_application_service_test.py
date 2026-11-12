@@ -13,7 +13,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from unittest.mock import patch
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from django.conf import settings
 url = urlparse(os.environ["DATABASE_URL"])
@@ -21,8 +21,8 @@ settings.configure(
     SECRET_KEY="test",
     INSTALLED_APPS=["app.domain.game"],
     DATABASES={"default": {
-        "ENGINE": "django.db.backends.postgresql", "NAME": url.path[1:],
-        "USER": url.username, "PASSWORD": url.password,
+        "ENGINE": "django.db.backends.postgresql", "NAME": unquote(url.path[1:]),
+        "USER": unquote(url.username or ""), "PASSWORD": unquote(url.password or ""),
         "HOST": url.hostname, "PORT": url.port or 5432,
         "TEST": {"NAME": "gomoku_test_" + uuid.uuid4().hex},
     }},
@@ -103,7 +103,9 @@ try:
     # Force a failure after the ORM update: the transaction must roll it back.
     rollback_id, before = service.create_game()
     real_save = GameRepository.save
-    def fail_after_save(self, game_id, state):
+    def fail_after_save(
+        self: GameRepository, game_id: uuid.UUID, state: GameState
+    ) -> GameState:
         real_save(self, game_id, state)
         raise RuntimeError("simulated failure")
     with patch.object(GameRepository, "save", fail_after_save):
@@ -119,7 +121,7 @@ try:
     # the waiter must see the committed stone rather than overwrite it.
     concurrent_id, _ = service.create_game()
     barrier = Barrier(2)
-    def make_move():
+    def make_move() -> GameState | IllegalMoveReason:
         close_old_connections()
         try:
             barrier.wait(timeout=10)
@@ -139,7 +141,7 @@ try:
     # Different positions must also serialize so both turns are retained.
     concurrent_id, _ = service.create_game()
     barrier = Barrier(2)
-    def different_move(x):
+    def different_move(x: int) -> GameState:
         close_old_connections()
         try:
             barrier.wait(timeout=10)
