@@ -9,12 +9,24 @@ max_threads = 4
 max_depth = 1
 
 [agents.domain_guardian]
-description = "唯讀架構與領域審查員。檢查 API 層 ORM 引用、領域服務框架相依性、Python 型別規範與五子棋規則。"
+description = "Read-only architecture and domain reviewer for API ORM imports, service dependencies, Python types, and Gomoku rules."
 config_file = "agents/domain_guardian.toml"
 
 [agents.test_doc_worker]
-description = "為新增或修改的 Service 撰寫單元測試，並同步更新英文功能文件。"
+description = "Write unit tests and update English feature documentation for new or changed services."
 config_file = "agents/test_doc_worker.toml"
+
+[agents.code_reviewer]
+description = "Read-only reviewer for security, architecture, Gomoku rules, Python types, and performance."
+config_file = "agents/code_reviewer.toml"
+
+[agents.test_runner]
+description = "Run tests in isolated containers and report concise failure diagnostics."
+config_file = "agents/test_runner.toml"
+
+[agents.tech_researcher]
+description = "Read-only technical researcher assessing compatibility, dependencies, risks, and trade-offs."
+config_file = "agents/tech_researcher.toml"
 
 [features]
 hooks = true

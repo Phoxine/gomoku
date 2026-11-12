@@ -14,6 +14,7 @@ Refer to modular configuration files for deep technical alignment:
 ## 🤖 Subagent Orchestration Strategy
 
 Use specialized subagents to support independent work while respecting higher-priority session instructions:
+- **New subagents:** Before finalizing a new subagent, test its registration, actual dispatch, and role-specific behavior using the [subagent validation workflow](docs/codex/workflows/subagent-validation.md).
 - **Codebase Exploration (`explorer`):** For unfamiliar modules or cross-layer dependencies, delegate independent read-only exploration where useful.
 - **Parallel Tests and Documentation (`test_doc_worker`):** After implementing domain logic or API endpoints, delegate unit tests in `src/tests/` and English feature documentation. Assign file targets that do not overlap with active edits.
 - **Architectural Review (`domain_guardian`):** Before finalizing a feature or running push validation, delegate a read-only review of layer isolation, framework-independent game rules, and Python 3.14 typing.
