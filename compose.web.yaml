@@ -1,0 +1,6 @@
+# Optional local development server. Set a distinct APP_PORT in this worktree's .env.
+services:
+  app:
+    ports:
+      - "127.0.0.1:${APP_PORT:?Set a distinct APP_PORT in the repository-root .env file}:8000"
+    command: ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]

@@ -1,0 +1,36 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f3ec">
+  <title>Gomoku — A game of five</title>
+  <link rel="stylesheet" href="{% static 'game/game.css' %}">
+  <script src="{% static 'game/game.js' %}" defer></script>
+</head>
+<body>
+  <header class="header"><a class="brand" href="/" aria-label="Gomoku home"><span class="brand-mark">✳</span> GOMOKU<span class="brand-dot">.</span></a><span class="header-note">A GAME OF FIVE <span> / </span> PLAY TOGETHER</span><span class="header-index">01 — 15</span></header>
+  <main class="layout">
+    <section class="intro" aria-labelledby="page-title">
+      <div class="eyebrow"><span class="pulse"></span> THE CLASSIC STRATEGY GAME</div>
+      <h1 id="page-title">A little strategy.<br><em>A lot of fun.</em></h1>
+      <p class="lede">Take turns, think ahead, and be the first to connect five stones in a row.</p>
+      <div class="side-divider"></div>
+      <div class="status-label">THE GAME <span>01 / 01</span></div>
+      <div class="turn-card" id="turn-card"><span class="status-stone" id="status-stone"></span><div><span class="card-caption" id="card-caption">READY TO PLAY</span><strong id="status-text">Start a new game</strong></div></div>
+      <p class="helper" id="status-help">Black plays first. Good luck!</p>
+      <button type="button" class="new-game" id="new-game">New game <span aria-hidden="true">↗</span></button>
+      <div class="restore"><label for="game-id">HAVE A GAME ID?</label><div class="restore-row"><input id="game-id" type="text" placeholder="Paste game ID" autocomplete="off" spellcheck="false"><button id="load-game" type="button" aria-label="Load game">→</button></div><p>Share an ID to play on another device.</p></div>
+      <p class="message" id="message" role="status" aria-live="polite"></p>
+    </section>
+    <section class="play-area" aria-label="Game board">
+      <div class="board-top"><span><span class="tiny-square"></span> THE BOARD</span><span>15 × 15 GRID</span></div>
+      <div class="board-frame"><div class="board" id="board" role="group" aria-label="Gomoku board"></div></div>
+      <div class="board-bottom"><span>FIVE IN A ROW WINS</span><span>HORIZONTAL &nbsp; / &nbsp; VERTICAL &nbsp; / &nbsp; DIAGONAL</span></div>
+      <div class="game-meta"><span>GAME ID</span><code id="current-id">—</code><button type="button" id="copy-id" disabled>Copy ID ↗</button><button type="button" id="refresh-game" disabled>Refresh ↻</button></div>
+    </section>
+  </main>
+  <footer><span>GOOD GAMES ARE MADE TOGETHER.</span><span>GOMOKU &nbsp; © &nbsp; PLAY A LITTLE MORE</span></footer>
+</body>
+</html>
