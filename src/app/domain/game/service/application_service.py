@@ -4,13 +4,15 @@ from uuid import UUID
 
 from django.db import transaction
 
-from app.domain.game.repository.game_repository import GameRepository
+from app.domain.game.repository.game_repository import GameNotFoundError, GameRepository
 from app.domain.game.service import game_service
 from app.domain.game.state import (
     GameState,
     GameStatus,
     Move,
 )
+
+__all__ = ["GameApplicationService", "GameNotFoundError"]
 
 
 class GameApplicationService:
