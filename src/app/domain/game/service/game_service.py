@@ -1,10 +1,10 @@
 """Framework-agnostic Gomoku game rules."""
 
+from app.domain.game.state import Board
+
 BOARD_SIZE = 15
 WIN_LENGTH = 5
 EMPTY = 0
-
-Board = list[list[int]]
 
 
 def initialize_board() -> Board:
