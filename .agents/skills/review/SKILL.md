@@ -1,3 +1,8 @@
+---
+name: review
+description: Review code changes for correctness, security, performance, and compliance with project architecture rules.
+---
+
 # Code Review
 
 ## Task
