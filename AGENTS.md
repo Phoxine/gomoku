@@ -40,6 +40,12 @@ Supplemented by a Pre-Tool-Use command-text hook (not a replacement for file-acc
 
 ---
 
+## Feature Documentation
+
+For every feature, create or update English documentation alongside the implementation, following [the feature documentation workflow](docs/codex/workflows/feature-documentation.md).
+
+---
+
 ## Environment Setup
 The development environment is entirely containerized. Do not install project dependencies or run databases on the local host.
 
