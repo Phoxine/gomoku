@@ -1,6 +1,14 @@
 """Framework-agnostic Gomoku game rules."""
 
-from app.domain.game.state import Board
+from app.domain.game.state import (
+    Board,
+    GameState,
+    GameStatus,
+    IllegalMoveError,
+    IllegalMoveReason,
+    Move,
+    Player,
+)
 
 BOARD_SIZE = 15
 WIN_LENGTH = 5
@@ -70,3 +78,52 @@ def has_won(board: Board, x: int, y: int, player: int) -> bool:
         if count >= WIN_LENGTH:
             return True
     return False
+
+
+def apply_move(state: GameState, move: Move) -> GameState:
+    """Apply a move and return a new state without mutating the input state."""
+    if not isinstance(state.status, GameStatus):
+        raise ValueError("Game state has an invalid status")
+    if type(state.current_player) is not int or state.current_player not in (1, 2):
+        raise ValueError("Game state has an invalid current player")
+    if state.status is GameStatus.WON:
+        if type(state.winner) is not int or state.winner not in (1, 2):
+            raise ValueError("A won game must have a valid winner")
+    elif state.winner is not None:
+        raise ValueError("An in-progress or drawn game cannot have a winner")
+    validate_board(state.board)
+    if state.status in (GameStatus.WON, GameStatus.DRAW):
+        raise IllegalMoveError(IllegalMoveReason.GAME_FINISHED)
+
+    if not isinstance(move, Move):
+        raise TypeError("Move must be a Move instance")
+    if type(move.x) is not int or type(move.y) is not int:
+        raise IllegalMoveError(IllegalMoveReason.INVALID_COORDINATE)
+    if not 0 <= move.x < BOARD_SIZE or not 0 <= move.y < BOARD_SIZE:
+        raise IllegalMoveError(IllegalMoveReason.OUT_OF_BOUNDS)
+    if state.board[move.y][move.x] != EMPTY:
+        raise IllegalMoveError(IllegalMoveReason.OCCUPIED)
+
+    board = [row.copy() for row in state.board]
+    player: Player = state.current_player
+    board[move.y][move.x] = player
+
+    if has_won(board, move.x, move.y, player):
+        status = GameStatus.WON
+        winner = player
+        current_player = player
+    elif all(cell != EMPTY for row in board for cell in row):
+        status = GameStatus.DRAW
+        winner = None
+        current_player = player
+    else:
+        status = GameStatus.IN_PROGRESS
+        winner = None
+        current_player = 2 if player == 1 else 1
+
+    return GameState(
+        board=board,
+        current_player=current_player,
+        status=status,
+        winner=winner,
+    )
