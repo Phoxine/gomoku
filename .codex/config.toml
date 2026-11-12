@@ -8,10 +8,6 @@ project_root_markers = [".git"]
 max_threads = 4
 max_depth = 1
 
-[agents.domain_guardian]
-description = "Read-only architecture and domain reviewer for API ORM imports, service dependencies, Python types, and Gomoku rules."
-config_file = "agents/domain_guardian.toml"
-
 [agents.test_doc_worker]
 description = "Write unit tests and update English feature documentation for new or changed services."
 config_file = "agents/test_doc_worker.toml"

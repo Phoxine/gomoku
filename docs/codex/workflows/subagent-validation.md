@@ -1,6 +1,6 @@
 # Subagent Validation
 
-Validate every newly added subagent before finalizing the change. A valid TOML file or a successful parent-agent response alone does not prove that the intended subagent ran. Follow higher-priority session instructions and permission requirements throughout this workflow.
+Validate every newly added or modified subagent before finalizing the change. A valid TOML file or a successful parent-agent response alone does not prove that the intended subagent ran. Follow higher-priority session instructions and permission requirements throughout this workflow.
 
 ## 1. Check registration and configuration
 
