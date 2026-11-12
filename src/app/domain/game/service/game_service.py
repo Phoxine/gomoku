@@ -38,7 +38,7 @@ def validate_move(board: Board, x: int, y: int, player: int) -> None:
         raise TypeError("Coordinates must be integers")
     if not 0 <= x < BOARD_SIZE or not 0 <= y < BOARD_SIZE:
         raise ValueError("Coordinates must be between 0 and 14")
-    if player not in (1, 2):
+    if type(player) is not int or player not in (1, 2):
         raise ValueError("Player must be 1 or 2")
     validate_board(board)
     if board[y][x] != EMPTY:
