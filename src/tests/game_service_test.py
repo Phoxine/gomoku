@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.game_service import (
+from app.domain.game.service.game_service import (
     BOARD_SIZE,
     EMPTY,
     has_won,
