@@ -4,6 +4,18 @@ sandbox_mode = "workspace-write"
 
 project_root_markers = [".git"]
 
+[agents]
+max_threads = 4
+max_depth = 1
+
+[agents.domain_guardian]
+description = "唯讀架構與領域審查員。檢查 API 層 ORM 引用、領域服務框架相依性、Python 型別規範與五子棋規則。"
+config_file = "agents/domain_guardian.toml"
+
+[agents.test_doc_worker]
+description = "為新增或修改的 Service 撰寫單元測試，並同步更新英文功能文件。"
+config_file = "agents/test_doc_worker.toml"
+
 [features]
 hooks = true
 
