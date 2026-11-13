@@ -1,11 +1,13 @@
 ---
 name: create-worktree
-description: Create a separate Git worktree and isolated Docker Compose stack for parallel feature development in this repository. Use when asked to start a feature in another session instead of changing the current worktree.
+description: Create a separate Git worktree and isolated Docker Compose stack for repository changes. Use by default for each new task unless the user explicitly directs work in the current worktree or names another existing branch or worktree.
 ---
 
 # Create an Isolated Feature Worktree
 
-Keep the current worktree and branch unchanged. Always create new branches from the repository's `main`, never from the currently checked-out task branch. Synchronize `main` with `origin/main` before branching. Derive a short slug from the request and create a sibling checkout at `../gomoku-<task-slug>`. Use `feature/gomoku-<task-slug>` for product features, `infra/<task-slug>` for worktree, Docker, CI, or other development infrastructure, `fix/<task-slug>` for bug fixes, `docs/<task-slug>` for documentation, and `refactor/<task-slug>` for refactoring without functional changes. If the branch or path already exists, inspect it and ask before reusing or changing it.
+Keep the current worktree and branch unchanged. Use this workflow by default for each new task that changes repository files, including sequential tasks; do not create a worktree for read-only requests. If the user explicitly directs work in the current worktree or names another existing branch or worktree, inspect that target and use it if the request is unambiguous and the work will not overwrite or mix unrelated changes. Ask only if the target is ambiguous or using it could overwrite or mix unrelated changes.
+
+Always create new branches from synchronized `origin/main`, never from the currently checked-out task branch. Derive a short slug from the request and create a sibling checkout at `../gomoku-<task-slug>`. Use `feature/gomoku-<task-slug>` for product features, `infra/<task-slug>` for worktree, Docker, CI, or other development infrastructure, `fix/<task-slug>` for bug fixes, `docs/<task-slug>` for documentation, and `refactor/<task-slug>` for refactoring without functional changes. If the branch or path already exists and the user has not explicitly named it, inspect it and ask before reusing or changing it.
 
 ```bash
 # Product feature example; use origin/main as the base.

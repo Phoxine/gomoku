@@ -1,6 +1,6 @@
 # Multi-Session Worktree Workflow
 
-Use one Git worktree and one Docker Compose project for each concurrently developed feature. Compose project names scope the containers, default network, and named volumes; each worktree also has its own local environment files and bind-mounted source tree.
+Use one Git worktree and one Docker Compose project for each task that changes repository files, whether tasks are concurrent or sequential. Use the current worktree/branch or a specific existing target only when the user explicitly directs it. Read-only requests do not require a new worktree. Compose project names scope the containers, default network, and named volumes; each worktree also has its own local environment files and bind-mounted source tree.
 
 ```bash
 git fetch origin main
