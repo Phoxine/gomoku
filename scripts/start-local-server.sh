@@ -7,16 +7,38 @@ cd "$repo_root"
 root_env="$repo_root/.env"
 app_env="$repo_root/src/.env"
 project_name="$(bash "$repo_root/scripts/worktree-project-name.sh")"
+default_project="$(bash "$repo_root/scripts/worktree-project-name.sh" directory)"
+legacy_default_project="gomoku"
 
 if [[ ! -f "$root_env" ]]; then
-  if ! existing_default_volume="$(docker volume ls --quiet \
-    --filter "label=com.docker.compose.project=gomoku" \
+  if ! existing_default_volumes="$(docker volume ls --quiet \
+    --filter "label=com.docker.compose.project=$project_name" \
     --filter label=com.docker.compose.volume=postgres_data)"; then
-    echo "Could not inspect Docker volumes; refusing to create a new project without checking the existing database." >&2
+    echo "Could not inspect Docker volumes; refusing to create credentials without checking the existing database." >&2
     exit 1
   fi
-  if [[ -n "$existing_default_volume" ]]; then
-    echo "The existing gomoku database volume is protected. Restore its original .env and POSTGRES_PASSWORD, or choose a documented database migration before starting a new project." >&2
+  if [[ "$default_project" != "$project_name" ]]; then
+    if ! default_project_volumes="$(docker volume ls --quiet \
+      --filter "label=com.docker.compose.project=$default_project" \
+      --filter label=com.docker.compose.volume=postgres_data)"; then
+      echo "Could not inspect Docker volumes; refusing to create credentials without checking the directory-default database." >&2
+      exit 1
+    fi
+  else
+    default_project_volumes="$existing_default_volumes"
+  fi
+  if [[ "$legacy_default_project" != "$project_name" && "$legacy_default_project" != "$default_project" ]]; then
+    if ! legacy_default_volumes="$(docker volume ls --quiet \
+      --filter "label=com.docker.compose.project=$legacy_default_project" \
+      --filter label=com.docker.compose.volume=postgres_data)"; then
+      echo "Could not inspect Docker volumes; refusing to create credentials without checking the legacy database." >&2
+      exit 1
+    fi
+  else
+    legacy_default_volumes=""
+  fi
+  if [[ -n "$existing_default_volumes" || -n "$default_project_volumes" || -n "$legacy_default_volumes" ]]; then
+    echo "An existing database volume for this, the directory-default, or the legacy Compose project is protected. Restore its original .env and POSTGRES_PASSWORD, or choose a documented database migration before starting a new project." >&2
     exit 1
   fi
 
@@ -93,5 +115,5 @@ fi
 bash "$repo_root/scripts/compose.sh" -f compose.web.yaml up --build -d
 bash "$repo_root/scripts/compose.sh" exec app uv run python manage.py migrate
 
-port="$(sed -nE 's/^[[:space:]]*(export[[:space:]]+)?APP_PORT[[:space:]]*=[[:space:]]*([0-9]+).*/\2/p' "$root_env" | tail -n 1)"
+port="${APP_PORT:-$(sed -nE 's/^[[:space:]]*(export[[:space:]]+)?APP_PORT[[:space:]]*=[[:space:]]*([0-9]+).*/\2/p' "$root_env" | tail -n 1)}"
 printf 'Gomoku is running at http://localhost:%s/\n' "$port"
