@@ -5,7 +5,7 @@ description: Create a separate Git worktree and isolated Docker Compose stack fo
 
 # Create an Isolated Feature Worktree
 
-Keep the current worktree and branch unchanged. Always create new branches from the repository's `main`, never from the currently checked-out task branch. Synchronize `main` with `origin/main` before branching. Derive a short slug from the request and create a sibling checkout at `../gomoku-<task-slug>`. Use `feature/gomoku-<task-slug>` for product features and `infra/<task-slug>` for worktree, Docker, CI, or other development infrastructure. If the branch or path already exists, inspect it and ask before reusing or changing it.
+Keep the current worktree and branch unchanged. Always create new branches from the repository's `main`, never from the currently checked-out task branch. Synchronize `main` with `origin/main` before branching. Derive a short slug from the request and create a sibling checkout at `../gomoku-<task-slug>`. Use `feature/gomoku-<task-slug>` for product features, `infra/<task-slug>` for worktree, Docker, CI, or other development infrastructure, `fix/<task-slug>` for bug fixes, `docs/<task-slug>` for documentation, and `refactor/<task-slug>` for refactoring without functional changes. If the branch or path already exists, inspect it and ask before reusing or changing it.
 
 ```bash
 # Product feature example; use origin/main as the base.
