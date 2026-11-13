@@ -16,7 +16,7 @@
 
 ## Validation
 <!-- List the checks, linters, and test suites that passed in the isolated worktree environment. -->
-- [ ] Passed `.codex/hooks/stop-validation.sh` (formatting, lint, and test suite)
+- [ ] Passed `.codex/hooks/stop-validation.sh` with formatting, lint, and tests completed (confirm no `Skipping final validation` message; a successful exit alone is insufficient)
 - [ ] Verified diff against `origin/main` (no `.env`, secrets, or unrelated changes included)
 
 ## Screenshots / Notes (Optional)

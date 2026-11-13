@@ -10,7 +10,7 @@ Follow this workflow when the user asks to push changes and open a GitHub pull r
 ## 1. Confirm the worktree and branch
 
 - Run `git status --short`, `git branch --show-current`, and `git worktree list` from the intended worktree.
-- Do not create a PR from `main` or another protected base branch. If the user is on `main`, use the repository's isolated worktree workflow to create a task branch from synchronized `origin/main`.
+- Do not create a PR from `main` or another protected base branch. If the user is on `main`, identify task-specific local commits and uncommitted changes, including untracked files, then create an isolated task branch from synchronized `origin/main` using the repository's worktree workflow. Cherry-pick only task-specific commits and copy only task-specific uncommitted changes to that branch. Confirm the transfer is complete and the original `main` checkout remains unchanged before continuing; leave unrelated changes out.
 - Follow the branch prefixes in `AGENTS.md`: `feature/gomoku-<task>` for product features, `infra/<task>` for development tooling or infrastructure, `fix/<task>` for bug fixes, `docs/<task>` for documentation, and `refactor/<task>` for refactoring without functional changes.
 - If the branch or worktree already exists, inspect it before reusing it. Do not overwrite, reset, or discard user changes.
 - Inspect the full diff against the intended base branch. Confirm that only task-related files are included. Never stage or commit `.env`, `*.pem`, `*.key`, credentials, or unrelated user changes.
@@ -26,7 +26,7 @@ Follow this workflow when the user asks to push changes and open a GitHub pull r
 
 - Use the isolated Docker Compose environment assigned to this worktree. Never point commands at another worktree's project or database.
 - Before every push, ensure this worktree's Compose services are running with `bash scripts/compose.sh up --build -d`, then run `bash .codex/hooks/stop-validation.sh`.
-- The Stop hook runs formatting, lint, and the full test suite against this worktree's app container. If it fails, fix the issue in this branch and rerun the hook until it passes.
+- The Stop hook runs formatting, lint, and the full test suite against this worktree's app container. If it fails, fix the issue in this branch and rerun the hook until it passes. If it prints `Skipping final validation`, validation did not run, even if the hook exits successfully. Do not push. Resolve the Compose startup issue, confirm `app` appears in `bash scripts/compose.sh ps --status running --services`, then rerun the hook and confirm formatting, lint, and tests completed without being skipped.
 - Run `git diff --check` and confirm the working tree contains no unintended changes before pushing.
 
 ## 4. Push the branch
