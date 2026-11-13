@@ -1,5 +1,7 @@
 # Multi-Session Worktree Workflow
 
+If a task depends on changes that exist only as uncommitted work, ask whether to continue in the existing worktree or transfer the required changes to a new worktree before creating it. Preserve unrelated changes.
+
 Use one Git worktree and one Docker Compose project for each task that changes repository files, whether tasks are concurrent or sequential. Use the current worktree/branch or an existing target only when the user explicitly selects it as the modification target; merely mentioning a branch or worktree for context is not enough. If the task depends on unmerged changes from another branch, ask which branch to use as the base before creating a new worktree; otherwise, create the task branch from synchronized `origin/main`. Read-only requests do not require a new worktree. Compose project names scope the containers, default network, and named volumes; each worktree also has its own local environment files and bind-mounted source tree.
 
 ```bash
