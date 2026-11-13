@@ -75,7 +75,7 @@ Never run `down -v` unless the user explicitly authorizes deleting this worktree
   <!-- Add screenshots, API response examples, or deployment notes if helpful for reviewers. -->
   ````
 
-- Use a concise title that describes the change. Follow any title convention defined by the repository; do not invent one if none exists.
+- Format the PR title as `<type>(<scope>): <description>`, for example, `feature(auth): add user login`. Use `feature`, `fix`, `infra`, `docs`, or `refactor` as the type, and keep the description concise and focused on the change.
 - Check for an existing PR for the branch before creating one. Target `main` unless the user or repository workflow specifies another base.
 - Create the PR with the GitHub CLI, for example:
 
