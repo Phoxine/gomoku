@@ -41,3 +41,13 @@ bash scripts/compose.sh exec app uv run python manage.py migrate
 Open `http://localhost:<APP_PORT>/`. The web override binds only to `127.0.0.1` and uses Django's development server; it is intended for local development only. The same browser restores its last game, and the game ID can be used to load a game manually. The interface is for two players taking turns on one device; accounts, authorization, and real-time updates are not implemented.
 
 To stop the containers while retaining the database volume, run `bash scripts/compose.sh down`.
+
+### Start the local server with one command
+
+On a single checkout, run:
+
+```bash
+bash scripts/start-local-server.sh
+```
+
+The script creates a local root `.env` with this checkout's Compose project name and a database password when one does not exist, then starts the web stack and applies migrations. It defaults to port `8000`; set `APP_PORT` in the root `.env` to use another port. It refuses to create a new project when it detects the legacy `gomoku` database volume without its environment file, preserving that volume. Stop the server with `bash scripts/compose.sh down`.
