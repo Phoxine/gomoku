@@ -1,11 +1,15 @@
 ---
 name: create-worktree
-description: Create a separate Git worktree and isolated Docker Compose stack for parallel feature development in this repository. Use when asked to start a feature in another session instead of changing the current worktree.
+description: Create a separate Git worktree and isolated Docker Compose stack for repository changes. Use by default for each new task unless the user explicitly directs work in the current worktree or names another existing branch or worktree.
 ---
 
 # Create an Isolated Feature Worktree
 
-Keep the current worktree and branch unchanged. Always create new branches from the repository's `main`, never from the currently checked-out task branch. Synchronize `main` with `origin/main` before branching. Derive a short slug from the request and create a sibling checkout at `../gomoku-<task-slug>`. Use `feature/gomoku-<task-slug>` for product features, `infra/<task-slug>` for worktree, Docker, CI, or other development infrastructure, `fix/<task-slug>` for bug fixes, `docs/<task-slug>` for documentation, and `refactor/<task-slug>` for refactoring without functional changes. If the branch or path already exists, inspect it and ask before reusing or changing it.
+If a task depends on changes that exist only as uncommitted work, ask whether to continue in the existing worktree or transfer the required changes to a new worktree before creating it. Preserve unrelated changes.
+
+Keep the current worktree and branch unchanged. Use this workflow by default for each new task that changes repository files, including sequential tasks; do not create a worktree for read-only requests. Use the current worktree/branch or another existing branch/worktree only when the user explicitly selects it as the modification target; merely mentioning one for context does not select it. Inspect an explicitly selected target before using it and ask only if it is ambiguous or using it could overwrite or mix unrelated changes.
+
+Before creating a new branch, check whether the task depends on unmerged changes from another branch. If it does, ask the user which branch to use as the base; do not assume that mentioning a branch makes it the work target. Otherwise, create new branches from synchronized `origin/main`, never from the currently checked-out task branch. Derive a short slug from the request and create a sibling checkout at `../gomoku-<task-slug>`. Use `feature/gomoku-<task-slug>` for product features, `infra/<task-slug>` for worktree, Docker, CI, or other development infrastructure, `fix/<task-slug>` for bug fixes, `docs/<task-slug>` for documentation, and `refactor/<task-slug>` for refactoring without functional changes. If the branch or path already exists and the user has not explicitly selected it as the modification target, inspect it and ask before reusing or changing it.
 
 ```bash
 # Product feature example; use origin/main as the base.
