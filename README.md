@@ -15,6 +15,7 @@ The [game domain design](docs/domains/game/context-designs.md) and [database sch
 
 ## Not yet implemented
 
+- Play against a computer opponent.
 - Account management, matchmaking, real-time multiplayer updates, and spectators.
 
 ## Django management commands
