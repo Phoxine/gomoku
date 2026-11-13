@@ -7,7 +7,7 @@ This is a web-based interactive Gomoku game built with Python 3.14 + Django + Dj
 Refer to modular configuration files for deep technical alignment:
 - **Sandbox & Strategy:** [.codex/config.toml](.codex/config.toml) (`workspace-write` sandbox).
 - **Automated Guardrails:** [.codex/hooks/pre_tool_use_policy.py](.codex/hooks/pre_tool_use_policy.py) and [.codex/hooks/stop-validation.sh](.codex/hooks/stop-validation.sh).
-- **Skills:** [.agents/skills/create-pr/SKILL.md](.agents/skills/create-pr/SKILL.md), [.agents/skills/create-worktree/SKILL.md](.agents/skills/create-worktree/SKILL.md), and [.agents/skills/review/SKILL.md](.agents/skills/review/SKILL.md).
+- **Skills:** [.agents/skills/create-pr/SKILL.md](.agents/skills/create-pr/SKILL.md), [.agents/skills/create-worktree/SKILL.md](.agents/skills/create-worktree/SKILL.md), [.agents/skills/migrate/SKILL.md](.agents/skills/migrate/SKILL.md), and [.agents/skills/review/SKILL.md](.agents/skills/review/SKILL.md).
 - **Architecture & Security Rules:** [.codex/rules/api.md](.codex/rules/api.md) and [.codex/rules/security.md](.codex/rules/security.md).
 - **Workflows:** [feature documentation](docs/codex/workflows/feature-documentation.md), [issue fixes](docs/codex/workflows/fix-issue.md), [multi-session worktrees](docs/codex/workflows/multi-session-worktrees.md), and [subagent validation](docs/codex/workflows/subagent-validation.md).
 - **Environment Prerequisites:** [docs/codex/prerequisites.md](docs/codex/prerequisites.md).
@@ -77,7 +77,7 @@ Each worktree must use its own Docker Compose project and isolated environment. 
 - **Self-Correction:** If the Stop hook fails, read the terminal output, fix the code/tests within the same session, and re-run until it passes 🟢.
 - **Boundaries:**
   - ✅ **Always:** Work in task-appropriate branches inside dedicated worktrees, write unit tests in [`src/tests/`](src/tests/), and use the isolated container stack for the active worktree.
-  - ⚠️ **Ask first:** Database schema changes (especially when concurrent migrations may conflict), `AGENTS.md` updates, or adding dependencies to `pyproject.toml`.
+  - ⚠️ **Ask first:** Database schema changes require explicit approval first, especially when concurrent migrations may conflict. Follow the [migration skill](.agents/skills/migrate/SKILL.md) for the full workflow. Also ask before updating `AGENTS.md` or adding dependencies to `pyproject.toml`.
   - 🚫 **Never:** Share Docker Compose project names or database volumes between worktrees, commit secrets, or push directly to `main`.
 ## Git & Pull Request Workflow
 - When creating or submitting a PR, follow the `create-pr` skill in [`.agents/skills/create-pr/SKILL.md`](.agents/skills/create-pr/SKILL.md).
