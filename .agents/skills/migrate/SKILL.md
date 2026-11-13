@@ -25,14 +25,7 @@ Follow this workflow whenever a task changes database schema, adds or edits Djan
   git diff origin/main -- 'src/app/**/migrations/*.py'
   ```
 
-- Check the affected app's migration dependencies and graph for duplicate migration names or numbering and multiple leaf migrations. Before writing a file, use `makemigrations` with `--dry-run` to detect graph conflicts without creating a migration:
-
-  ```bash
-  bash scripts/compose.sh exec app uv run python manage.py makemigrations <app_label> --name <descriptive_name> --dry-run
-  ```
-
-  If Django reports conflicts or concurrent migrations are present, stop and coordinate before creating or merging migrations.
-- Start this worktree's own services and confirm the app is running:
+- Start this worktree's own services and confirm the app is running before using Django management commands:
 
   ```bash
   bash scripts/compose.sh up --build -d
@@ -40,6 +33,14 @@ Follow this workflow whenever a task changes database schema, adds or edits Djan
   ```
 
   The output must include `app`. Resolve startup problems before running migration commands. Do not use a local-host Python environment or database.
+
+- Check the affected app's migration dependencies and graph for duplicate migration names or numbering and multiple leaf migrations. Before writing a file, use `makemigrations` with `--dry-run` to detect graph conflicts without creating a migration:
+
+  ```bash
+  bash scripts/compose.sh exec app uv run python manage.py makemigrations <app_label> --name <descriptive_name> --dry-run
+  ```
+
+  If Django reports conflicts or concurrent migrations are present, stop and coordinate before creating or merging migrations.
 
 ## 3. Generate and inspect migrations
 
