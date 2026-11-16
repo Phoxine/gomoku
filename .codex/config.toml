@@ -13,7 +13,7 @@ description = "Write unit tests and update English feature documentation for new
 config_file = "agents/test_doc_worker.toml"
 
 [agents.code_reviewer]
-description = "Read-only reviewer for security, architecture, Gomoku rules, Python types, and performance."
+description = "Read-only reviewer for application and infrastructure changes, security, architecture, and performance."
 config_file = "agents/code_reviewer.toml"
 
 [agents.test_runner]
