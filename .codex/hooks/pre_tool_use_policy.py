@@ -373,7 +373,15 @@ def blocked(command: str, depth: int = 0) -> bool:
                 option = args[index]
                 if option == "--":
                     break
-                if option in {"-o", "+o", "-O", "+O"}:
+                if (
+                    option.startswith(("-", "+"))
+                    and not option.startswith("--")
+                    and any(flag in "oO" for flag in option[1:])
+                ):
+                    # Clusters containing both a value option and -c have
+                    # ambiguous argument positions; do not guess.
+                    if "c" in option[1:]:
+                        return True
                     if index + 1 >= len(args):
                         return True
                     index += 2
