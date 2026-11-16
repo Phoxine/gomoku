@@ -6,11 +6,20 @@ Use one Git worktree and one Docker Compose project for each task that changes r
 
 ```bash
 git fetch origin main
-git worktree add ../gomoku-feature-name -b feature/gomoku-feature-name origin/main
-cd ../gomoku-feature-name
+common_git_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
+worktree_root="$(dirname "$(dirname "$common_git_dir")")/gomoku-worktrees"
+mkdir -p "$worktree_root"
+git worktree add "$worktree_root/feature-name" -b feature/gomoku-feature-name origin/main
+cd "$worktree_root/feature-name"
 bash scripts/init-worktree-env.sh
 bash scripts/compose.sh up --build -d
 ```
+
+New task worktrees belong in `gomoku-worktrees/` alongside the main checkout. Resolve the parent from the shared Git directory as shown, so creating a worktree from another task worktree does not create a nested directory. Check that the branch and destination are available before creating them; do not reuse an existing target without explicit selection.
+
+Existing worktrees may remain in their current locations. Do not automatically move them: the canonical path participates in Compose project naming, and their existing environment and database volume must be preserved. Any relocation and database migration requires an explicit plan.
+
+For Codex sessions, the dedicated `gomoku-worktrees/` directory may be configured as an additional writable root. This grants write access to all its contents, and managed sandbox restrictions can still apply. Reopen or start a session and verify its effective permissions after changing sandbox configuration.
 
 Run `bash scripts/compose.sh` for local Compose commands. The wrapper explicitly selects the root `.env` project and ignores conflicting exported project or database-password variables. The initializer derives `COMPOSE_PROJECT_NAME` from a readable branch slug and a stable hash of the canonical worktree path, then preserves that name across branch renames. It generates a local database password when one is missing and copies `src/.env.example` to `src/.env` when needed. It parses dotenv values with Docker Compose's parser using a minimal probe configuration, so blank passwords and a missing `src/.env` do not block initialization. It refuses symlinked env files and foreign project names. Existing legacy and directory-default project names remain supported to keep their current database volumes attached. If a default project's database volume exists, preserve its project name and original password or migrate the database explicitly before switching.
 
