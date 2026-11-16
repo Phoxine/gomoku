@@ -20,7 +20,7 @@ New task worktrees belong in `gomoku-worktrees/` alongside the main checkout. Se
 
 Existing worktrees may remain in their current locations. Do not automatically move them: the canonical path participates in Compose project naming, and their existing environment and database volume must be preserved. Any relocation and database migration requires an explicit plan.
 
-For Codex sessions, the dedicated `gomoku-worktrees/` directory may be configured as an additional writable root. See the [personal configuration example](../prerequisites.md#optional-allow-writes-to-task-worktrees). This grants write access to all its contents, and managed sandbox restrictions can still apply. Reopen or start a session and verify its effective permissions after changing sandbox configuration.
+For Codex sessions, the dedicated `gomoku-worktrees/` directory may be configured as an additional writable root. See the [personal configuration example](../../../../docs/codex/prerequisites.md#optional-allow-writes-to-task-worktrees). This grants write access to all its contents, and managed sandbox restrictions can still apply. Reopen or start a session and verify its effective permissions after changing sandbox configuration.
 
 Run `bash scripts/compose.sh` for local Compose commands. The wrapper explicitly selects the root `.env` project and ignores conflicting exported project or database-password variables. The initializer derives `COMPOSE_PROJECT_NAME` from a readable branch slug and a stable hash of the canonical worktree path, then preserves that name across branch renames. It generates a local database password when one is missing and copies `src/.env.example` to `src/.env` when needed. It parses dotenv values with Docker Compose's parser using a minimal probe configuration, so blank passwords and a missing `src/.env` do not block initialization. It refuses symlinked env files and foreign project names. Existing legacy and directory-default project names remain supported to keep their current database volumes attached. If a default project's database volume exists, preserve its project name and original password or migrate the database explicitly before switching.
 
@@ -34,7 +34,7 @@ bash scripts/compose.sh down
 
 `bash scripts/compose.sh down` stops and removes this project's containers and network while retaining its database volume. `bash scripts/compose.sh down -v` also deletes this worktree's database data.
 
-For another feature, create another branch and worktree and initialize its environment separately. Do not share `.env` files or Compose project names between worktrees. Initialization uses a worktree-local lock and atomic file replacement. Temporary `.env.*` files are removed on normal exit or handled signals and ignored by Git. See [`scripts/init-worktree-env.sh`](../../../scripts/init-worktree-env.sh) for the initializer behavior.
+For another feature, create another branch and worktree and initialize its environment separately. Do not share `.env` files or Compose project names between worktrees. Initialization uses a worktree-local lock and atomic file replacement. Temporary `.env.*` files are removed on normal exit or handled signals and ignored by Git. See [`scripts/init-worktree-env.sh`](../../../../scripts/init-worktree-env.sh) for the initializer behavior.
 
 ## Environment Variables and Isolation
 

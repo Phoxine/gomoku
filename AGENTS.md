@@ -9,7 +9,7 @@ Refer to modular configuration files for deep technical alignment:
 - **Automated Guardrails:** [.codex/hooks/pre_tool_use_policy.py](.codex/hooks/pre_tool_use_policy.py) and [.codex/hooks/stop-validation.sh](.codex/hooks/stop-validation.sh).
 - **Skills:** [.agents/skills/create-pr/SKILL.md](.agents/skills/create-pr/SKILL.md), [.agents/skills/create-worktree/SKILL.md](.agents/skills/create-worktree/SKILL.md), [.agents/skills/migrate/SKILL.md](.agents/skills/migrate/SKILL.md), and [.agents/skills/review/SKILL.md](.agents/skills/review/SKILL.md).
 - **Architecture & Security Rules:** [.codex/rules/api.md](.codex/rules/api.md) and [.codex/rules/security.md](.codex/rules/security.md).
-- **Workflows:** [feature documentation](docs/codex/workflows/feature-documentation.md), [issue fixes](docs/codex/workflows/fix-issue.md), [multi-session worktrees](docs/codex/workflows/multi-session-worktrees.md), and [subagent validation](docs/codex/workflows/subagent-validation.md).
+- **Additional Skills:** [feature documentation](.agents/skills/document-feature/SKILL.md), [issue fixes](.agents/skills/fix-issue/SKILL.md), and [subagent validation](.agents/skills/validate-subagent/SKILL.md).
 - **Environment Prerequisites:** [docs/codex/prerequisites.md](docs/codex/prerequisites.md).
 
 ---
@@ -17,7 +17,7 @@ Refer to modular configuration files for deep technical alignment:
 ## 🤖 Subagent Orchestration Strategy
 
 Use specialized subagents to support independent work while respecting higher-priority session instructions:
-- **New or modified subagents:** Before finalizing a new or modified subagent, test its registration, actual dispatch, and role-specific behavior using the [subagent validation workflow](docs/codex/workflows/subagent-validation.md).
+- **New or modified subagents:** Before finalizing a new or modified subagent, test its registration, actual dispatch, and role-specific behavior using the [subagent validation skill](.agents/skills/validate-subagent/SKILL.md).
 - **Codebase Exploration (`explorer`):** For unfamiliar modules or cross-layer dependencies (such as API, domain, and repository interactions), delegate independent read-only exploration where useful.
 - **Parallel Tests and Documentation (`test_doc_worker`):** After implementing domain logic or API endpoints, delegate unit tests in `src/tests/` and English feature documentation. Assign file targets that do not overlap with active edits.
 - **Code and Architecture Review (`code_reviewer`):** Before finalizing any repository change or running push validation, delegate a read-only review covering all files changed for the task. Review the relevant application and infrastructure concerns, including correctness, security, layer isolation, framework-independent game rules, typing, performance, concurrency, CI, and container isolation. Follow the review skill's remediation and re-review loop.
@@ -60,7 +60,7 @@ Supplemented by a Pre-Tool-Use command-text hook (not a replacement for file-acc
 
 ## Feature Documentation
 
-For every feature, create or update English documentation alongside the implementation, following [the feature documentation workflow](docs/codex/workflows/feature-documentation.md).
+For every feature, create or update English documentation alongside the implementation, following [the feature documentation skill](.agents/skills/document-feature/SKILL.md).
 
 ---
 
@@ -68,7 +68,7 @@ For every feature, create or update English documentation alongside the implemen
 The development environment is entirely containerized. Do not install project dependencies or run databases on the local host.
 
 ### Core Environment Variables & Multi-Worktree Isolation
-Each worktree must use its own Docker Compose project and isolated environment. Follow the [multi-session worktree workflow](docs/codex/workflows/multi-session-worktrees.md) for initialization, environment variables, database isolation, and cleanup.
+Each worktree must use its own Docker Compose project and isolated environment. Follow the [create-worktree skill](.agents/skills/create-worktree/SKILL.md) and its [isolation reference](.agents/skills/create-worktree/references/multi-session-worktrees.md) for initialization, environment variables, database isolation, and cleanup.
 
 ## 🔄 Quality Gates & Workflow Boundaries
 - **Uncommitted prerequisites:** If a task depends on changes that exist only as uncommitted work, ask whether to continue in the existing worktree or transfer the required changes to a new worktree before creating it. Preserve unrelated changes.

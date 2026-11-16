@@ -1,3 +1,8 @@
+---
+name: document-feature
+description: Create or update English domain documentation for a feature, including applicable API, schema, and design details.
+---
+
 ## Feature Documentation
 
 - For every feature, create or update English documentation in `docs/domains/<domain>/` in the same change as the implementation. Keep it accurate as the feature evolves.

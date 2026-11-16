@@ -1,3 +1,8 @@
+---
+name: fix-issue
+description: Investigate and fix a reported issue, including regression testing and review.
+---
+
 # Fix Issue Workflow
 
 1. Read the issue description and reproduction steps.

@@ -36,4 +36,4 @@ Tell the user the branch name, absolute worktree path, and Compose project name 
 
 The resolver uses Docker Compose's dotenv parser with a minimal probe configuration. The initializer serializes concurrent runs, creates and updates environment files atomically, cleans temporary files on exit, and Git ignores `.env.*` temporary files. Existing legacy and directory-default project names remain available so their volumes stay attached. If a default project's database volume exists, preserve its project name and original password or migrate the database explicitly before switching.
 
-For the environment variable split and cleanup behavior, see [`docs/codex/workflows/multi-session-worktrees.md`](../../../docs/codex/workflows/multi-session-worktrees.md).
+For the environment variable split and cleanup behavior, see [worktree isolation reference](references/multi-session-worktrees.md).

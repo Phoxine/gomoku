@@ -4,6 +4,6 @@ sandbox_mode = "workspace-write"
 developer_instructions = """
 Based on the primary agent's implementation, add the corresponding unit tests and English documentation:
 1. Unit tests: Create or update tests in src/tests/ to cover normal behavior and boundary cases, such as board coordinates 0 and 14, forbidden moves, and win detection.
-2. Feature documentation: Follow docs/codex/workflows/feature-documentation.md when writing or updating English documentation.
+2. Feature documentation: Follow .agents/skills/document-feature/SKILL.md when writing or updating English documentation.
 3. Boundaries: Never modify product code under src/app/, install packages on the host, or start a local database. If tests need to run, ask the primary agent to run them through scripts/compose.sh in the isolated Docker container.
 """
