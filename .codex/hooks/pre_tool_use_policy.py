@@ -359,6 +359,7 @@ def blocked(command: str, depth: int = 0) -> bool:
             "while",
             "until",
             "case",
+            "coproc",
             "esac",
             "function",
         }:
@@ -393,7 +394,7 @@ def blocked(command: str, depth: int = 0) -> bool:
             inspected_command = False
             while index < len(args):
                 option = args[index]
-                if option == "--":
+                if option in {"--", "-"}:
                     index += 1
                     break
                 if (

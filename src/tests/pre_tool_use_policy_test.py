@@ -102,6 +102,9 @@ def test_hook_uses_postponed_annotations_for_python_39() -> None:
         "if true; then rm -fr folder; fi",
         "for f in a; do git push -f; done",
         "while true; do git reset --hard; done",
+        "bash -c 'coproc git reset --hard HEAD; wait'",
+        "printf hello | bash -",
+        "printf hello | sh -",
         "printf hello | sh",
         "bash -s",
         "$X -rf dir",
@@ -211,6 +214,21 @@ def test_hook_blocks_zsh_attached_option_before_command() -> None:
         input=json.dumps(
             {"tool_input": {"command": "zsh -oshwordsplit -c 'git reset --hard HEAD'"}}
         ),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["bash -c 'coproc git reset --hard HEAD; wait'", "printf hello | bash -"],
+)
+def test_hook_rejects_uninspectable_shell_forms(command: str) -> None:
+    result = subprocess.run(
+        [sys.executable, str(HOOK)],
+        input=json.dumps({"tool_input": {"command": command}}),
         capture_output=True,
         text=True,
         check=False,
