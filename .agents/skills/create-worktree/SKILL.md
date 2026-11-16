@@ -9,17 +9,18 @@ If a task depends on changes that exist only as uncommitted work, ask whether to
 
 Keep the current worktree and branch unchanged. Use this workflow by default for each new task that changes repository files, including sequential tasks; do not create a worktree for read-only requests. Use the current worktree/branch or another existing branch/worktree only when the user explicitly selects it as the modification target; merely mentioning one for context does not select it. Inspect an explicitly selected target before using it and ask only if it is ambiguous or using it could overwrite or mix unrelated changes.
 
-Before creating a new branch, check whether the task depends on unmerged changes from another branch. If it does, ask the user which branch to use as the base; do not assume that mentioning a branch makes it the work target. Otherwise, create new branches from synchronized `origin/main`, never from the currently checked-out task branch. Derive a short slug and create the checkout under `gomoku-worktrees/<task-slug>`, in the directory alongside the main checkout. Resolve this directory from the shared Git directory, not from the current worktree. Use `feature/gomoku-<task-slug>` for product features, `infra/<task-slug>` for worktree, Docker, CI, or other development infrastructure, `fix/<task-slug>` for bug fixes, `docs/<task-slug>` for documentation, and `refactor/<task-slug>` for refactoring without functional changes. If the branch or path already exists and the user has not explicitly selected it as the modification target, inspect it and ask before reusing or changing it.
+Before creating a new branch, check whether the task depends on unmerged changes from another branch. If it does, ask the user which branch to use as the base; do not assume that mentioning a branch makes it the work target. Otherwise, create new branches from synchronized `origin/main`, never from the currently checked-out task branch. Derive a short slug and create the checkout under `gomoku-worktrees/<task-slug>`, in the directory alongside the main checkout. Identify that checkout's actual location, including when Git uses a separate directory, and set an absolute destination rather than deriving it from the current worktree or Git metadata path. Use `feature/gomoku-<task-slug>` for product features, `infra/<task-slug>` for worktree, Docker, CI, or other development infrastructure, `fix/<task-slug>` for bug fixes, `docs/<task-slug>` for documentation, and `refactor/<task-slug>` for refactoring without functional changes. If the branch or path already exists and the user has not explicitly selected it as the modification target, inspect it and ask before reusing or changing it.
 
 ```bash
 # Product feature example; use origin/main as the base.
-git fetch origin main
-common_git_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
-worktree_root="$(dirname "$(dirname "$common_git_dir")")/gomoku-worktrees"
-mkdir -p "$worktree_root"
-git worktree add "$worktree_root/online-match" -b feature/gomoku-online-match origin/main
-cd "$worktree_root/online-match"
-bash scripts/init-worktree-env.sh
+# Replace the placeholder with the absolute directory alongside the main checkout.
+worktree_root="/absolute/path/to/gomoku-worktrees"
+test "$worktree_root" != "/absolute/path/to/gomoku-worktrees" &&
+git fetch origin main &&
+mkdir -p "$worktree_root" &&
+git worktree add "$worktree_root/online-match" -b feature/gomoku-online-match origin/main &&
+cd "$worktree_root/online-match" &&
+bash scripts/init-worktree-env.sh &&
 bash scripts/compose.sh up --build -d
 ```
 

@@ -5,17 +5,18 @@ If a task depends on changes that exist only as uncommitted work, ask whether to
 Use one Git worktree and one Docker Compose project for each task that changes repository files, whether tasks are concurrent or sequential. Use the current worktree/branch or an existing target only when the user explicitly selects it as the modification target; merely mentioning a branch or worktree for context is not enough. If the task depends on unmerged changes from another branch, ask which branch to use as the base before creating a new worktree; otherwise, create the task branch from synchronized `origin/main`. Read-only requests do not require a new worktree. Compose project names scope the containers, default network, and named volumes; each worktree also has its own local environment files and bind-mounted source tree.
 
 ```bash
-git fetch origin main
-common_git_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
-worktree_root="$(dirname "$(dirname "$common_git_dir")")/gomoku-worktrees"
-mkdir -p "$worktree_root"
-git worktree add "$worktree_root/feature-name" -b feature/gomoku-feature-name origin/main
-cd "$worktree_root/feature-name"
-bash scripts/init-worktree-env.sh
+# Replace the placeholder with the absolute directory alongside the main checkout.
+worktree_root="/absolute/path/to/gomoku-worktrees"
+test "$worktree_root" != "/absolute/path/to/gomoku-worktrees" &&
+git fetch origin main &&
+mkdir -p "$worktree_root" &&
+git worktree add "$worktree_root/feature-name" -b feature/gomoku-feature-name origin/main &&
+cd "$worktree_root/feature-name" &&
+bash scripts/init-worktree-env.sh &&
 bash scripts/compose.sh up --build -d
 ```
 
-New task worktrees belong in `gomoku-worktrees/` alongside the main checkout. Resolve the parent from the shared Git directory as shown, so creating a worktree from another task worktree does not create a nested directory. Check that the branch and destination are available before creating them; do not reuse an existing target without explicit selection.
+New task worktrees belong in `gomoku-worktrees/` alongside the main checkout. Set its absolute location as shown after identifying the actual main checkout; do not derive it from the current task worktree or assume the shared Git directory is inside the main checkout. Check that the branch and destination are available before creating them; do not reuse an existing target without explicit selection.
 
 Existing worktrees may remain in their current locations. Do not automatically move them: the canonical path participates in Compose project naming, and their existing environment and database volume must be preserved. Any relocation and database migration requires an explicit plan.
 
