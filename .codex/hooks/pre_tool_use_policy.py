@@ -4,7 +4,8 @@
 Literal shell words, simple variable references, quoting, simple separators
 and static redirections are inspected. Variable values are not resolved.
 Unsupported shell syntax is rejected. This cannot inspect programs, scripts,
-or other tool calls. Rules
+or other tool calls. Shell control structures, dynamic command names, and
+shells reading commands from standard input are rejected. Rules
 prompt only outside the sandbox; Compose volume approval is not guaranteed
 when the sandbox can access Docker.
 """
@@ -342,6 +343,26 @@ def blocked(command: str, depth: int = 0) -> bool:
         if not args:
             continue
         executable = args[0].rsplit("/", 1)[-1]
+        # These words change which following token is executed; the tokenizer
+        # does not model shell grammar. A dynamic command name is also unknown.
+        if "\0" in executable or executable in {
+            "if",
+            "then",
+            "else",
+            "elif",
+            "fi",
+            "for",
+            "select",
+            "in",
+            "do",
+            "done",
+            "while",
+            "until",
+            "case",
+            "esac",
+            "function",
+        }:
+            return True
         if executable == "env":
             args = args[1:]
             while args and args[0].startswith("-"):
@@ -369,15 +390,21 @@ def blocked(command: str, depth: int = 0) -> bool:
                 return True
         elif executable in {"sh", "bash", "zsh"}:
             index = 1
+            inspected_command = False
             while index < len(args):
                 option = args[index]
                 if option == "--":
+                    index += 1
                     break
                 if (
                     option.startswith(("-", "+"))
                     and not option.startswith("--")
                     and any(flag in "oO" for flag in option[1:])
                 ):
+                    # Zsh accepts an option name attached to -o; consuming the
+                    # following word could skip a separate -c invocation.
+                    if executable == "zsh" and len(option) > 2:
+                        return True
                     # Clusters containing both a value option and -c have
                     # ambiguous argument positions; do not guess.
                     if "c" in option[1:]:
@@ -401,10 +428,16 @@ def blocked(command: str, depth: int = 0) -> bool:
                             args[index + 1], depth + 1
                         ):
                             return True
+                        inspected_command = True
                         break
+                    if option.startswith("-") and "s" in option[1:]:
+                        # stdin can supply commands not present in this text.
+                        return True
                 else:
                     break
                 index += 1
+            if not inspected_command and index >= len(args):
+                return True
         elif executable in {
             "eval",
             "exec",

@@ -97,6 +97,14 @@ def test_hook_uses_postponed_annotations_for_python_39() -> None:
         "bash +eO extglob -c 'rm -fr folder'",
         "bash -eoc pipefail 'git status'",
         "bash -eo",
+        "zsh -oshwordsplit -c 'git reset --hard HEAD'",
+        "zsh -o shwordsplit -c 'git reset --hard HEAD'",
+        "if true; then rm -fr folder; fi",
+        "for f in a; do git push -f; done",
+        "while true; do git reset --hard; done",
+        "printf hello | sh",
+        "bash -s",
+        "$X -rf dir",
         "exec -a worker git reset --hard HEAD",
         "exec -la worker rm -fr folder",
         "exec -a",
@@ -173,6 +181,9 @@ def test_blocks_unsafe_or_unsupported_commands(command: str) -> None:
         "bash -e -c 'git status'",
         "bash -eo pipefail -c 'git status'",
         "bash +eO extglob -c 'git status'",
+        "zsh -o shwordsplit -c 'git status'",
+        "zsh -c 'git status'",
+        "bash scripts/start-local-server.sh",
         "exec -a worker git status",
         "exec -la worker echo 'git reset --hard HEAD'",
     ],
@@ -192,6 +203,19 @@ def test_hook_does_not_echo_blocked_command() -> None:
     )
     assert result.returncode == 2
     assert secret not in result.stderr + result.stdout
+
+
+def test_hook_blocks_zsh_attached_option_before_command() -> None:
+    result = subprocess.run(
+        [sys.executable, str(HOOK)],
+        input=json.dumps(
+            {"tool_input": {"command": "zsh -oshwordsplit -c 'git reset --hard HEAD'"}}
+        ),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
 
 
 def test_hook_does_not_invent_approval_decision() -> None:
