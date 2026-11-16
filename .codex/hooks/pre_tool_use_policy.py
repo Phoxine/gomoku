@@ -3,8 +3,8 @@
 
 Literal shell words, simple variable references, quoting, simple separators
 and static redirections are inspected. Variable values are not resolved.
-Unsupported syntax falls back to the existing text checks and is not fully
-inspected. This cannot inspect programs, scripts, or other tool calls. Rules
+Unsupported shell syntax is rejected. This cannot inspect programs, scripts,
+or other tool calls. Rules
 prompt only outside the sandbox; Compose volume approval is not guaranteed
 when the sandbox can access Docker.
 """
@@ -183,7 +183,7 @@ def tokenize(command: str, substitutions: list[str] | None = None) -> list[list[
                         i += 1
                     else:
                         raise UnsupportedCommand
-                if i < len(command) and command[i] not in " \t;&|<>":
+                if i < len(command) and command[i] not in " \t\n;&|<>":
                     raise UnsupportedCommand
                 i -= 1
             else:
@@ -332,25 +332,8 @@ def blocked(command: str, depth: int = 0) -> bool:
     except UnsupportedBacktick:
         return True
     except UnsupportedCommand:
-        # An unsupported construct can hide a later executable substitution.
-        # Reject rather than silently ignoring backticks in that case.
-        if "`" in command:
-            return True
-        # Parenthesized shell groups may contain commands after a failed parse.
-        # Do not silently allow them when this tokenizer cannot inspect them.
-        if "(" in command or ")" in command:
-            return True
-        # Preserve a safely tokenizable command prefix when later syntax is
-        # unsupported. This remains best-effort, not a shell security boundary.
-        boundaries = [m.start() for m in re.finditer(r"\s+", command)]
-        for end in reversed(boundaries[-128:]):
-            prefix = command[:end]
-            try:
-                tokenize(prefix)
-            except UnsupportedCommand:
-                continue
-            return blocked(prefix, depth + 1)
-        return False
+        # An uninspected suffix may contain executable commands.
+        return True
     if any(blocked(substitution, depth + 1) for substitution in substitutions):
         return True
     for args in commands:
@@ -385,10 +368,35 @@ def blocked(command: str, depth: int = 0) -> bool:
             if blocked(" ".join(shlex_quote(arg) for arg in args), depth + 1):
                 return True
         elif executable in {"sh", "bash", "zsh"}:
-            if len(args) < 3 or args[1] not in {"-c", "-lc", "-cl"}:
-                continue
-            if blocked(args[2], depth + 1):
-                return True
+            index = 1
+            while index < len(args):
+                option = args[index]
+                if option == "--":
+                    break
+                if option in {"-o", "+o", "-O", "+O"}:
+                    if index + 1 >= len(args):
+                        return True
+                    index += 2
+                    continue
+                if option.startswith("--"):
+                    if option not in {
+                        "--noprofile",
+                        "--norc",
+                        "--posix",
+                        "--restricted",
+                        "--verbose",
+                    }:
+                        return True
+                elif option.startswith(("-", "+")) and len(option) > 1:
+                    if option.startswith("-") and "c" in option[1:]:
+                        if index + 1 >= len(args) or blocked(
+                            args[index + 1], depth + 1
+                        ):
+                            return True
+                        break
+                else:
+                    break
+                index += 1
         elif executable in {
             "eval",
             "exec",
@@ -412,6 +420,21 @@ def blocked(command: str, depth: int = 0) -> bool:
                 if option == "--":
                     index += 1
                     break
+                if (
+                    executable == "exec"
+                    and option.startswith("-")
+                    and not option.startswith("--")
+                ):
+                    flags = option[1:]
+                    if any(flag not in "cla" for flag in flags):
+                        return True
+                    if "a" in flags:
+                        if index + 1 >= len(args):
+                            return True
+                        index += 2
+                    else:
+                        index += 1
+                    continue
                 value_options = {
                     "sudo": {"-u", "-g", "-h", "-p", "-C", "-T", "-r", "-t"},
                     "nice": {"-n", "--adjustment"},
