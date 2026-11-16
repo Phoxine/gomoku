@@ -5,12 +5,22 @@ If a task depends on changes that exist only as uncommitted work, ask whether to
 Use one Git worktree and one Docker Compose project for each task that changes repository files, whether tasks are concurrent or sequential. Use the current worktree/branch or an existing target only when the user explicitly selects it as the modification target; merely mentioning a branch or worktree for context is not enough. If the task depends on unmerged changes from another branch, ask which branch to use as the base before creating a new worktree; otherwise, create the task branch from synchronized `origin/main`. Read-only requests do not require a new worktree. Compose project names scope the containers, default network, and named volumes; each worktree also has its own local environment files and bind-mounted source tree.
 
 ```bash
-git fetch origin main
-git worktree add ../gomoku-feature-name -b feature/gomoku-feature-name origin/main
-cd ../gomoku-feature-name
-bash scripts/init-worktree-env.sh
+# Replace the placeholder with the absolute directory alongside the main checkout.
+worktree_root="/absolute/path/to/gomoku-worktrees"
+test "$worktree_root" != "/absolute/path/to/gomoku-worktrees" &&
+git fetch origin main &&
+mkdir -p "$worktree_root" &&
+git worktree add "$worktree_root/feature-name" -b feature/gomoku-feature-name origin/main &&
+cd "$worktree_root/feature-name" &&
+bash scripts/init-worktree-env.sh &&
 bash scripts/compose.sh up --build -d
 ```
+
+New task worktrees belong in `gomoku-worktrees/` alongside the main checkout. Set its absolute location as shown after identifying the actual main checkout; do not derive it from the current task worktree or assume the shared Git directory is inside the main checkout. Check that the branch and destination are available before creating them; do not reuse an existing target without explicit selection.
+
+Existing worktrees may remain in their current locations. Do not automatically move them: the canonical path participates in Compose project naming, and their existing environment and database volume must be preserved. Any relocation and database migration requires an explicit plan.
+
+For Codex sessions, the dedicated `gomoku-worktrees/` directory may be configured as an additional writable root. See the [personal configuration example](../prerequisites.md#optional-allow-writes-to-task-worktrees). This grants write access to all its contents, and managed sandbox restrictions can still apply. Reopen or start a session and verify its effective permissions after changing sandbox configuration.
 
 Run `bash scripts/compose.sh` for local Compose commands. The wrapper explicitly selects the root `.env` project and ignores conflicting exported project or database-password variables. The initializer derives `COMPOSE_PROJECT_NAME` from a readable branch slug and a stable hash of the canonical worktree path, then preserves that name across branch renames. It generates a local database password when one is missing and copies `src/.env.example` to `src/.env` when needed. It parses dotenv values with Docker Compose's parser using a minimal probe configuration, so blank passwords and a missing `src/.env` do not block initialization. It refuses symlinked env files and foreign project names. Existing legacy and directory-default project names remain supported to keep their current database volumes attached. If a default project's database volume exists, preserve its project name and original password or migrate the database explicitly before switching.
 
