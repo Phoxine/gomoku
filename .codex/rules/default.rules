@@ -1,0 +1,49 @@
+# Command prefixes complement the project hook and sandbox.
+prefix_rule(
+    pattern = ["gh", "pr", "view"],
+    decision = "allow",
+    match = ["gh pr view 123"],
+)
+
+prefix_rule(
+    pattern = ["python", "manage.py", ["makemigrations", "migrate"]],
+    decision = "prompt",
+)
+
+prefix_rule(
+    pattern = ["uv", "run", "python", "manage.py", ["makemigrations", "migrate"]],
+    decision = "prompt",
+)
+
+prefix_rule(
+    pattern = ["uv", ["add", "remove"]],
+    decision = "prompt",
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", "down"],
+    decision = "prompt",
+)
+
+prefix_rule(
+    pattern = ["bash", "scripts/compose.sh", "down"],
+    decision = "prompt",
+)
+
+prefix_rule(
+    pattern = ["rm", ["-rf", "-fr"]],
+    decision = "forbidden",
+    justification = "Avoid recursive forced deletion.",
+)
+
+prefix_rule(
+    pattern = ["git", "push", ["--force", "-f", "--force-with-lease"]],
+    decision = "forbidden",
+    justification = "Use a normal push.",
+)
+
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "forbidden",
+    justification = "Preserve existing work.",
+)
