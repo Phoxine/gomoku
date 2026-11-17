@@ -11,7 +11,7 @@ Follow this workflow when the user asks to push changes and open a GitHub pull r
 
 - Run `git status --short`, `git branch --show-current`, and `git worktree list` from the intended worktree.
 - Do not create a PR from `main` or another protected base branch. If the user is on `main`, identify task-specific local commits and uncommitted changes, including untracked files, then create an isolated task branch from synchronized `origin/main` using the repository's worktree workflow. Cherry-pick only task-specific commits and copy only task-specific uncommitted changes to that branch. Confirm the transfer is complete and the original `main` checkout remains unchanged before continuing; leave unrelated changes out.
-- Follow the branch prefixes in `AGENTS.md`: `feature/gomoku-<task>` for product features, `infra/<task>` for development tooling or infrastructure, `fix/<task>` for bug fixes, `docs/<task>` for documentation, and `refactor/<task>` for refactoring without functional changes.
+- Follow the branch naming rules in the [create-worktree skill](../create-worktree/SKILL.md).
 - If the branch or worktree already exists, inspect it before reusing it. Do not overwrite, reset, or discard user changes.
 - Inspect the full diff against the intended base branch. Confirm that only task-related files are included. Never stage or commit `.env`, `*.pem`, `*.key`, credentials, or unrelated user changes.
 
