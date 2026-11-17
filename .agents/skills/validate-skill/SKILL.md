@@ -1,11 +1,11 @@
 ---
 name: validate-skill
-description: Evaluate or refine agent skills and AGENTS.md instructions for clarity, overlap, and behavior.
+description: Validate new or modified agent skills, or assess skills and AGENTS.md for clarity, overlap, and behavior.
 ---
 
 # Validate and refine skills
 
-Use this workflow when asked to assess or streamline skills or their division of responsibility with AGENTS.md. Establish the requested scope and whether changes are authorized; an assessment alone is read-only. Inspect the target instructions, references, relevant neighboring skills, and applicable repository instructions before recommending changes.
+Use this workflow when creating or modifying a project skill, or when asked to assess or streamline skills or their division of responsibility with AGENTS.md. Establish the requested scope and whether changes are authorized; an assessment alone is read-only. Inspect the target instructions, references, relevant neighboring skills, and applicable repository instructions before recommending changes.
 
 - Check that the name and description identify the intended task and distinguish neighboring skills. Check frontmatter, links, and referenced resources; run an available skill validator when appropriate.
 - Identify duplicated, generic, obsolete, conflicting, or overly broad instructions. Retain project-specific constraints and useful decision points; do not remove requirements solely to reduce length. Propose merging or removing a skill only with evidence of overlap and regard changes to other skills as separate scope.
