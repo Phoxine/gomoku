@@ -22,8 +22,10 @@ Follow this workflow whenever a task changes database schema, adds or edits Djan
 
   ```bash
   git fetch origin main
-  git diff origin/main -- 'src/app/**/migrations/*.py'
+  git diff HEAD...origin/main -- 'src/app/**/migrations/*.py'
   ```
+
+  This compares the merge base with current `origin/main`. Inspect task-branch and uncommitted migration changes separately when relevant.
 
 - Start this worktree's own services and confirm the app is running before using Django management commands:
 

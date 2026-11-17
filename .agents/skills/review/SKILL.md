@@ -7,9 +7,9 @@ description: Review code changes for correctness, security, performance, and com
 
 ## Task
 
-Review the most recent code changes, focusing on:
+Determine the requested review scope and inspect all relevant changes, including task commits, staged and unstaged changes, and relevant untracked files. For task-branch work, compare against the intended base; do not assume the latest commit represents the whole task. Focus on:
 
-1. Whether the business logic matches the intent described in the pull request (PR).
+1. Whether the business logic matches the task or pull request intent.
 2. Potential security vulnerabilities, including SQL injection, cross-site scripting (XSS), and unvalidated input.
 3. Performance issues, including N+1 queries and unnecessary re-rendering.
 4. Compliance with the architecture rules defined in `AGENTS.md`.
