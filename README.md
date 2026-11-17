@@ -9,7 +9,7 @@ Gomoku is a web-based game under development. The intended first release support
 - **Web interface:** The browser interface provides a 15×15 board, current turn and game result, and restores the last game on the same browser. Players can also enter a game ID to load it.
 - **API:** The [game API](docs/domains/game/apis.md) creates and retrieves games and submits moves through the application service. Game rules remain independent of Django and the database.
 - **Django project:** The [project configuration](src/config/settings.py) registers the game domain and connects to PostgreSQL. Management commands use `src/manage.py`; WSGI and ASGI entry points are provided.
-- **Development:** Python 3.14, Django, and PostgreSQL run in isolated Docker Compose environments for each worktree. See the [worktree workflow](docs/codex/workflows/multi-session-worktrees.md).
+- **Development:** Python 3.14, Django, and PostgreSQL run in isolated Docker Compose environments for each worktree. See [Development setup](#development-setup).
 
 The [game domain design](docs/domains/game/context-designs.md) and [database schema](docs/domains/game/db-schemas.md) describe the implemented rules and data model.
 
@@ -18,9 +18,20 @@ The [game domain design](docs/domains/game/context-designs.md) and [database sch
 - Play against a computer opponent.
 - Account management, matchmaking, real-time multiplayer updates, and spectators.
 
+## Development setup
+
+Install Docker and Docker Compose, then initialize and start the environment from the checkout:
+
+```bash
+bash scripts/init-worktree-env.sh
+bash scripts/compose.sh up --build -d
+```
+
+Each worktree needs its own initialization, Compose project, and database volume. The initializer creates local environment files and a project name for the worktree; do not share or symlink those files between worktrees. Use `bash scripts/compose.sh` to run Compose commands for the current worktree. The database is accessible to the app on the private Compose network, without a host-published port. `bash scripts/compose.sh down` removes containers and the network while retaining the database volume.
+
 ## Django management commands
 
-After initializing and starting the isolated worktree environment as described in the [worktree workflow](docs/codex/workflows/multi-session-worktrees.md), run:
+After initializing and starting the isolated worktree environment as described in [Development setup](#development-setup), run:
 
 ```bash
 bash scripts/compose.sh exec app uv run python manage.py check
@@ -31,7 +42,7 @@ The app container receives `DJANGO_SECRET_KEY` and `DEBUG` from its local enviro
 
 ## Play locally
 
-Initialize the isolated worktree environment following the [worktree workflow](docs/codex/workflows/multi-session-worktrees.md). Set a distinct `APP_PORT` in the worktree's root `.env` and `DEBUG=True` in `src/.env`, then run:
+Initialize the isolated worktree environment following [Development setup](#development-setup). Set a distinct `APP_PORT` in the worktree's root `.env` and `DEBUG=True` in `src/.env`, then run:
 
 ```bash
 bash scripts/compose.sh -f compose.web.yaml up -d
