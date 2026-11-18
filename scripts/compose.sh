@@ -16,6 +16,11 @@ if [[ -z "$project_name" || ! "$project_name" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
 fi
 
 expected_project="$(bash "$repo_root/scripts/worktree-project-name.sh")"
+if [[ "${GOMOKU_REQUIRE_PATH_BOUND_PROJECT:-}" == 1 && "$project_name" != "$expected_project" ]]; then
+  echo "Cleanup requires a Compose project bound to this worktree's path." >&2
+  exit 1
+fi
+
 legacy_project="$(bash "$repo_root/scripts/worktree-project-name.sh" legacy)"
 default_project="$(bash "$repo_root/scripts/worktree-project-name.sh" directory)"
 if [[ "$project_name" != "$expected_project" && "$project_name" != "$legacy_project" && "$project_name" != "$default_project" ]]; then

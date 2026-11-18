@@ -54,6 +54,8 @@ if "ps" in args:
     sys.exit(0)
 if "exec" in args:
     sys.exit(int(os.environ.get("EXEC_FAIL", "0")))
+if "down" in args:
+    sys.exit(0)
 sys.exit(99)
 """)
         docker.chmod(0o755)
@@ -76,6 +78,36 @@ sys.exit(99)
 
     def project(self):
         return self.script("scripts/worktree-project-name.sh").stdout.strip()
+
+    def test_stop_local_stack_retains_volumes(self):
+        project = self.project()
+        self.write_env(f"COMPOSE_PROJECT_NAME={project}\nPOSTGRES_PASSWORD=synthetic\n")
+        self.env["GIT_DIR"] = str(REPO / ".git")
+        self.env["GIT_WORK_TREE"] = str(REPO)
+        self.env["CDPATH"] = str(REPO)
+        self.run_command("bash", "scripts/stop-local-stack.sh")
+        calls = Path(self.env["CALL_LOG"]).read_text().splitlines()
+        self.assertTrue(calls[-1].endswith(", 'down']"), calls)
+        self.assertIn(f"'--project-name', '{project}'", calls[-1])
+
+    def test_stop_local_stack_rejects_project_without_worktree_identity(self):
+        legacy = self.script(
+            "scripts/worktree-project-name.sh", "legacy"
+        ).stdout.strip()
+        for project in ("gomoku_foreign_0000000000000000", "examplerepo_", legacy):
+            with self.subTest(project=project):
+                self.write_env(f"COMPOSE_PROJECT_NAME={project}\n")
+                result = self.script("scripts/stop-local-stack.sh", ok=False)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("bound to this worktree", result.stderr)
+        self.assertNotIn("'down'", Path(self.env["CALL_LOG"]).read_text())
+
+    def test_stop_local_stack_rejects_arguments_before_calling_docker(self):
+        for option in ("-v", "--volumes", "--rmi"):
+            with self.subTest(option=option):
+                result = self.script("scripts/stop-local-stack.sh", option, ok=False)
+                self.assertEqual(result.returncode, 2)
+        self.assertFalse(Path(self.env["CALL_LOG"]).exists())
 
     def test_absent_and_blank_project_do_not_use_directory_default(self):
         for text in [

@@ -37,13 +37,15 @@ Push the current task branch and set its upstream:
 git push -u origin HEAD
 ```
 
-If the push fails, leave the Compose environment running for further work. After a successful push, stop and remove this worktree's containers and network while retaining its database volume:
+If the push fails, leave the Compose environment running for further work. After a successful push, stop and remove this worktree's containers and network while retaining its database volume. If the host cleanup helper is configured, use its literal absolute-path invocation from the [host prerequisites](../../../docs/codex/prerequisites.md#optional-allow-routine-compose-cleanup-without-a-prompt). Otherwise, use the repository script:
 
 ```bash
-bash scripts/compose.sh down
+bash scripts/stop-local-stack.sh
 ```
 
-Never run `down -v` unless the user explicitly authorizes deleting this worktree's database data.
+For a legacy Compose project name, verify that the project belongs to the current worktree before using `bash scripts/compose.sh down`.
+
+Obtain explicit authorization before deleting the worktree's database volume, including with `down -v`, `down --volumes`, or direct volume removal.
 
 ## 5. Create the PR
 
