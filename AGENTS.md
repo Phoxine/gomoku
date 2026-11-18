@@ -1,44 +1,89 @@
 # AGENTS.md
 
-Gomoku is a browser-based game built with Python 3.14, Django, and PostgreSQL in Docker.
+## Project Overview
+This is a web-based interactive Gomoku game built with Python 3.14 + Django + Django ORM + Postgres inside Docker containers.
 
-## Find project knowledge
+## Codex Configuration Index
+Refer to modular configuration files for deep technical alignment:
+- **Project knowledge.** Start at the [documentation index](docs/index.md) for design, product, and setup, or [ARCHITECTURE.md](ARCHITECTURE.md) for the code map and dependency boundaries.
+- **Sandbox & Strategy:** [.codex/config.toml](.codex/config.toml) (`workspace-write` sandbox).
+- **Automated Guardrails:** [.codex/hooks/pre_tool_use_policy.py](.codex/hooks/pre_tool_use_policy.py) and [.codex/hooks/stop-validation.sh](.codex/hooks/stop-validation.sh).
+- **Skills:** [.agents/skills/create-pr/SKILL.md](.agents/skills/create-pr/SKILL.md), [.agents/skills/create-worktree/SKILL.md](.agents/skills/create-worktree/SKILL.md), [.agents/skills/migrate/SKILL.md](.agents/skills/migrate/SKILL.md), and [.agents/skills/review/SKILL.md](.agents/skills/review/SKILL.md).
+- **Architecture & Security Rules:** [.codex/rules/api.md](.codex/rules/api.md) and [.codex/rules/security.md](.codex/rules/security.md).
+- **Additional Skills:** [feature documentation](.agents/skills/document-feature/SKILL.md), [issue fixes](.agents/skills/fix-issue/SKILL.md), [subagent validation](.agents/skills/validate-subagent/SKILL.md), and [skill and instruction review](.agents/skills/validate-skill/SKILL.md).
+- **Environment Prerequisites:** [docs/codex/prerequisites.md](docs/codex/prerequisites.md). See [development setup](README.md#development-setup) for build and startup commands.
 
-- Start at the [documentation index](docs/index.md) for design documents, product specifications, and setup. Use [ARCHITECTURE.md](ARCHITECTURE.md) to locate code and trace the API, service, repository, and database boundaries.
-- Go to the [game domain design](docs/domains/game/context-designs.md#game-service) for game rules and state transitions. Check the [rules tests](src/tests/game_service_test.py) and [state transition tests](src/tests/game_state_transition_test.py) for executable examples.
-- Use the [development setup](README.md#development-setup) and [Codex host prerequisites](docs/codex/prerequisites.md) for build and environment commands. See the [Codex configuration](.codex/config.toml), [command rules](.codex/rules/default.rules), and [command-text hook](.codex/hooks/pre_tool_use_policy.py) for tooling behavior.
+---
 
-## Choose the workflow
+## 🤖 Subagent Orchestration Strategy
 
-| Task | Instructions |
-| --- | --- |
-| Start repository changes or troubleshoot an isolated environment | [create-worktree](.agents/skills/create-worktree/SKILL.md) and its [isolation reference](.agents/skills/create-worktree/references/multi-session-worktrees.md) |
-| Investigate and fix a reported issue | [fix-issue](.agents/skills/fix-issue/SKILL.md) |
-| Change a feature | Update its English documentation alongside the implementation. [document-feature](.agents/skills/document-feature/SKILL.md) |
-| Change the database schema after approval | [migrate](.agents/skills/migrate/SKILL.md) |
-| Review and deliver a completed change | [review](.agents/skills/review/SKILL.md) and [create-pr](.agents/skills/create-pr/SKILL.md) |
-| Change a skill or a subagent | Use [validate-skill](.agents/skills/validate-skill/SKILL.md) for skill scope, overlap, and validation. Also follow skill-creator and run its format validator when available. Use [validate-subagent](.agents/skills/validate-subagent/SKILL.md) to verify registration, actual dispatch, and role-specific behavior before finalizing a subagent. |
+Use specialized subagents to support independent work while respecting higher-priority session instructions:
+- **New or modified subagents:** Before finalizing a new or modified subagent, test its registration, actual dispatch, and role-specific behavior using the [subagent validation skill](.agents/skills/validate-subagent/SKILL.md).
+- **Codebase Exploration (`explorer`):** For unfamiliar modules or cross-layer dependencies (such as API, domain, and repository interactions), delegate independent read-only exploration where useful.
+- **Parallel Tests and Documentation (`test_doc_worker`):** After implementing domain logic or API endpoints, delegate unit tests in `src/tests/` and English feature documentation. Assign file targets that do not overlap with active edits.
+- **Code and Architecture Review (`code_reviewer`):** Before finalizing any repository change or running push validation, delegate a read-only review covering all files changed for the task. Review the relevant application and infrastructure concerns, including correctness, security, layer isolation, framework-independent game rules, typing, performance, concurrency, CI, and container isolation. Follow the review skill's remediation and re-review loop.
+- **Test Execution and Diagnostics (`test_runner`):** When isolated test execution or failure analysis can be delegated, use this role to run tests through the current worktree's Compose wrapper and report the results. Request approval when Docker access requires it.
+- **Technical Research (`tech_researcher`):** When evaluating an uncertain technical approach, delegate a read-only assessment of compatibility, costs, architectural boundaries, and risks. Assign independent alternatives separately when comparison is useful.
+- **Container and Hook Execution:** Keep Docker Compose lifecycle commands (such as `up` and `down`) and Stop hook execution and self-correction in the main session to prevent concurrent container races within the worktree.
+- **Final Delegation Report:** When subagents are spawned, include a concise `### 🤖 Subagent Execution Summary` section in the final response, listing each subagent’s delegated scope and key outcome.
 
-## Worktree, validation, and delivery
+---
 
-- Use a dedicated task branch and worktree for repository changes, including sequential tasks. Reuse an existing target only when the user explicitly selects it. Inspect it and preserve unrelated changes. If the task depends on uncommitted changes, ask whether to continue in the existing worktree or transfer them before creating a worktree. Read-only tasks can use the current worktree.
-- Run project dependencies and databases in Docker. Give each worktree its own Compose project and database volume.
-- Every service function needs a corresponding unit test in [`src/tests/`](src/tests/). The [Stop hook](.codex/hooks/stop-validation.sh) runs formatting, lint, and tests in this worktree's running app container. It skips when the environment is uninitialized or the app is stopped.
-- When code or version-controlled documentation changes are complete, use [create-pr](.agents/skills/create-pr/SKILL.md) to commit and push the task branch and open or update its PR. Respect requests to keep changes local or otherwise limit delivery. Local-only working notes and read-only tasks require no PR.
-- Before any task-branch push, including a push without a PR or a repeat push, follow [push validation](.agents/skills/create-pr/SKILL.md#3-validate-before-pushing). Start the isolated services and run the full Stop hook. If it fails or skips, resolve the issue and rerun before pushing. Follow the [post-push cleanup](.agents/skills/create-pr/SKILL.md#4-push-the-branch) on success and retain the database volume. Keep the environment running if the push fails.
+## 🎯 Gomoku Core Domain Rules
+*High-value business logic constraints that must be enforced during feature development:*
+- **Board Grid Dimensions:** Fixed **15x15 grid** (coordinates `x, y` must be integers ranging from `0` to `14`).
+- **Win Condition Algorithm:** A player wins when **5 continuous stones of the same color** align horizontally, vertically, or diagonally.
+- **Framework-Agnostic Logic:** Game state and win-checking algorithms **must reside in [src/app/domain/game/service/game_service.py](src/app/domain/game/service/game_service.py)** without Django or database dependencies.
+- **Rule details and tests.** See the [game domain design](docs/domains/game/context-designs.md#game-service), [rules tests](src/tests/game_service_test.py), and [state transition tests](src/tests/game_state_transition_test.py).
 
-## Architecture and security constraints
+---
 
-- The board is 15×15 with integer coordinates from 0 to 14. Five or more consecutive stones of one color win horizontally, vertically, or diagonally. Keep game rules and state transitions in `src/app/domain/game/service/game_service.py`, independent of Django and the database. [Game domain design](docs/domains/game/context-designs.md)
-- Route application operations and data access in `src/app/api/` through domain services. Services use domain repositories for persistence. Keep ORM model imports out of the API layer, use request and response DTOs, and avoid returning ORM models. [API rules](.codex/rules/api.md)
-- Use `snake_case` for Python files and functions, `PascalCase` for classes, and native Python 3.14 type hints.
-- Use Django ORM or parameterized queries. Prohibit raw SQL string formatting. Never read, print, or commit `.env`, `*.pem`, `*.key`, or credential files. The command-text hook checks selected patterns. [Security rules](.codex/rules/security.md)
-- Obtain explicit authorization before changing the schema, editing `AGENTS.md`, adding dependencies to `pyproject.toml`, deleting a database volume, merging a PR, or removing a worktree. Never push directly to `main` or share Compose project names or database volumes.
+## 🛠️ Architecture & Coding Standards
+- **Naming Conventions:** Pythonic `snake_case` for files/functions (with type hints) and `PascalCase` for classes.
+- **Layer Isolation:** Django views/APIs ([`src/app/api/`](src/app/api/)) call domain services only; domain services communicate with databases via domain repositories. **Never import Django ORM Models directly into the API layer.** See [.codex/rules/api.md](.codex/rules/api.md).
+- **DTOs:** Enforce DTO usage for API requests and responses; never return ORM models directly (see [.codex/rules/api.md](.codex/rules/api.md)).
+- **Type Hinting:** Strictly use Python 3.14 native type hinting (e.g., `list[int]`, `dict[str, int]`).
 
-## Delegate independent work
+---
 
-- **`explorer`** investigates unfamiliar modules or cross-layer dependencies read-only when useful. **`tech_researcher`** evaluates uncertain approaches, including compatibility, costs, boundaries, and risks. Compare independent alternatives separately when useful.
-- **`test_doc_worker`** adds unit tests and English documentation after changes to domain logic or API endpoints. Assign files that are outside the main session's active edits.
-- **`code_reviewer`** reviews every changed file read-only before finalizing any repository change or running push validation. Cover relevant correctness, security, architecture, framework-independent game rules, typing, performance, concurrency, CI, and container isolation. Follow the [review and re-review loop](.agents/skills/review/SKILL.md#remediation-loop).
-- **`test_runner`** runs isolated tests or diagnoses failures through the current worktree's Compose wrapper where delegation is useful. Request Docker approval when required.
-- Keep Compose lifecycle operations and Stop hook execution and remediation in the main session. When subagents run, include their scopes and outcomes in a `### 🤖 Subagent Execution Summary` section in the final response.
+## 🔒 Security & Secrets Management
+Supplemented by a Pre-Tool-Use command-text hook (not a replacement for file-access controls):
+- **Zero Raw SQL:** Use Django ORM or parameterized queries; raw string formatting is prohibited.
+- **Credential Protection:** Never read, output, or commit any `.env`, `*.pem`, `*.key`, or credential files. The hook blocks selected command patterns only; it is not comprehensive file-access protection. See [.codex/rules/security.md](.codex/rules/security.md).
+
+---
+
+## 📂 Repository Structure Key Paths
+- [`src/app/`](src/app/) -- Main application source code: `api/` and `template/` sit directly under `app/`; domain code belongs under [`domain/`](src/app/domain/), organized by domain (for example, `domain/game/service/`, `domain/game/model/`, and `domain/game/repository/`). Tests remain under [`src/tests/`](src/tests/).
+- [`src/tests/`](src/tests/) -- Application unit tests.
+- [`docs/`](docs/) & [`.codex/`](.codex/) -- Documentation, rules, and configuration hooks.
+
+---
+
+## Feature Documentation
+
+For every feature, create or update English documentation alongside the implementation, following [the feature documentation skill](.agents/skills/document-feature/SKILL.md).
+
+---
+
+## Environment Setup
+The development environment is entirely containerized. Do not install project dependencies or run databases on the local host.
+
+### Core Environment Variables & Multi-Worktree Isolation
+Each worktree must use its own Docker Compose project and isolated environment. Follow the [create-worktree skill](.agents/skills/create-worktree/SKILL.md) and its [isolation reference](.agents/skills/create-worktree/references/multi-session-worktrees.md) for initialization, environment variables, database isolation, and cleanup.
+
+## 🔄 Quality Gates & Workflow Boundaries
+- **Skill changes:** When creating or modifying a project skill, use the [validate-skill workflow](.agents/skills/validate-skill/SKILL.md) to assess its scope, overlap, and validation. When skill-creator is available, also follow its guidance, including format validation.
+- **Uncommitted prerequisites:** If a task depends on changes that exist only as uncommitted work, ask whether to continue in the existing worktree or transfer the required changes to a new worktree before creating it. Preserve unrelated changes.
+- **Testing & Formatting:** Every service function requires a corresponding unit test in [`src/tests/`](src/tests/) (e.g., `user_service_test.py`). When this worktree's app container is running, the `Stop` hook ([.codex/hooks/stop-validation.sh](.codex/hooks/stop-validation.sh)) checks formatting, lint, and tests against the container selected by this worktree's `COMPOSE_PROJECT_NAME` through `scripts/compose.sh`. If this worktree has no initialized environment or its app service is stopped, the hook skips validation.
+- **Worktree-aware development:** For repository changes, including sequential tasks, use a dedicated task branch and worktree by default. Use an existing target only when the user explicitly selects it; inspect it first and preserve unrelated changes. Read-only requests do not require a new worktree. Follow the [create-worktree skill](.agents/skills/create-worktree/SKILL.md) for base selection, branch naming, and isolated environment setup.
+- **Push validation and cleanup:** Before every push of a task branch, including push-only requests, follow the [pre-push procedure](.agents/skills/create-pr/SKILL.md#3-validate-before-pushing). Ensure the worktree’s isolated Docker Compose services are running and run the full Stop hook validation; push only after it passes. After a successful push, follow the [PR cleanup procedure](.agents/skills/create-pr/SKILL.md#4-push-the-branch) for that worktree and retain its database volume. If the push fails, leave the environment running for further work. Before any subsequent push, restart the isolated services and run the full validation again. Obtain explicit authorization before deleting a database volume.
+- **Self-Correction:** If the Stop hook fails, read the terminal output, fix the code/tests within the same session, and re-run until it passes 🟢.
+- **Boundaries:**
+  - ✅ **Always:** Follow the worktree selection rules above, write unit tests in [`src/tests/`](src/tests/), and use the isolated container stack for the active worktree.
+  - ⚠️ **Ask first:** Database schema changes require explicit approval first, especially when concurrent migrations may conflict. Follow the [migration skill](.agents/skills/migrate/SKILL.md) for the full workflow. Also ask before updating `AGENTS.md` or adding dependencies to `pyproject.toml`.
+  - 🚫 **Never:** Share Docker Compose project names or database volumes between worktrees, commit secrets, or push directly to `main`.
+## Git and Pull Request Workflow
+
+- When code or version-controlled documentation changes are complete, follow [create-pr](.agents/skills/create-pr/SKILL.md) to commit and push the task branch, then open or update its PR. Respect explicit limits such as local-only or push-only delivery. Read-only tasks and local-only working notes require no PR.
+- Merge a PR or remove a worktree only with explicit authorization.

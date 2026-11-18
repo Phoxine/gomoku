@@ -5,7 +5,7 @@ description: Validate, push, and open or update a GitHub pull request when deliv
 
 # Create a Pull Request
 
-Follow the [repository delivery policy](../../../AGENTS.md#worktree-validation-and-delivery) for completed changes and any explicit delivery limits. Use this workflow when the user asks to open or submit a GitHub pull request (PR) as well. Merge only with explicit authorization.
+Follow the [repository delivery policy](../../../AGENTS.md#git-and-pull-request-workflow) for completed changes and any explicit delivery limits. Use this workflow when the user asks to open or submit a GitHub pull request (PR) as well. Merge only with explicit authorization.
 
 ## 1. Confirm the worktree and branch
 
@@ -27,6 +27,7 @@ Follow the [repository delivery policy](../../../AGENTS.md#worktree-validation-a
 - Use the isolated Docker Compose environment assigned to this worktree. Never point commands at another worktree's project or database.
 - Before every push, ensure this worktree's Compose services are running with `bash scripts/compose.sh up --build -d`, then run `bash .codex/hooks/stop-validation.sh`.
 - The Stop hook runs formatting, lint, and the full test suite against this worktree's app container. If it fails, fix the issue in this branch and rerun the hook until it passes. If it prints `Skipping final validation`, validation did not run, even if the hook exits successfully. Do not push. Resolve the Compose startup issue, confirm `app` appears in `bash scripts/compose.sh ps --status running --services`, then rerun the hook and confirm formatting, lint, and tests completed without being skipped.
+- If a validation fix changes repository files, review and commit those fixes as in step 2 before rerunning the full hook. Before pushing, confirm the source and test files used for validation match the commit being pushed.
 - Run `git diff --check` and confirm the working tree contains no unintended changes before pushing.
 
 ## 4. Push the branch
