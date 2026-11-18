@@ -4,10 +4,7 @@ Gomoku is a web-based game under development. The intended first release support
 
 See the [architecture overview](ARCHITECTURE.md) for the request flow, component responsibilities, and technical contracts.
 
-## Not yet implemented
-
-- Play against a computer opponent.
-- Account management, matchmaking, real-time multiplayer updates, and spectators.
+Browse the [documentation index](docs/index.md) for design and API details, or read the [local two-player specification](docs/product-specs/local-two-player-game.md) for supported gameplay and current limitations.
 
 ## Development setup
 
