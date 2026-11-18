@@ -1,11 +1,11 @@
 ---
 name: create-pr
-description: Prepare, validate, push, and open a GitHub pull request for changes in this repository when the user asks to create or submit a PR.
+description: Validate, push, and open or update a GitHub pull request when delivering completed code or tracked documentation changes, or when the user asks to submit a PR.
 ---
 
 # Create a Pull Request
 
-Follow this workflow when the user asks to push changes and open a GitHub pull request (PR). Do not merge the PR unless the user explicitly asks.
+Follow the [repository delivery policy](../../../AGENTS.md#worktree-validation-and-delivery) for completed changes and any explicit delivery limits. Use this workflow when the user asks to open or submit a GitHub pull request (PR) as well. Merge only with explicit authorization.
 
 ## 1. Confirm the worktree and branch
 
@@ -47,6 +47,8 @@ For a legacy Compose project name, verify that the project belongs to the curren
 
 Obtain explicit authorization before deleting the worktree's database volume, including with `down -v`, `down --volumes`, or direct volume removal.
 
+For a push-only request, report the push and stop after cleanup. Continue to step 5 when PR delivery is in scope.
+
 ## 5. Create the PR
 
 - Use `.github/pull_request_template.md` as the PR body format. Preserve its headings, explanatory comments, checklist items, and order; fill in the summary, change type, related issues, and validation details. Include the optional Screenshots / Notes section even when it has no content. Use the following format only if the repository template is unavailable:
@@ -78,7 +80,7 @@ Obtain explicit authorization before deleting the worktree's database volume, in
   ````
 
 - Format the PR title as `<type>(<scope>): <description>`, for example, `feature(auth): add user login`. Use `feature`, `fix`, `infra`, `docs`, or `refactor` as the type, and keep the description concise and focused on the change.
-- Check for an existing PR for the branch before creating one. Target `main` unless the user or repository workflow specifies another base.
+- Check for an existing open PR for the branch before creating one. A push updates an existing PR for that branch, so report its URL. For a new PR, target `main` unless the user or repository workflow specifies another base.
 - Create the PR with the GitHub CLI, for example:
 
   ```bash
