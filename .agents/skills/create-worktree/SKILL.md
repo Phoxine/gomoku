@@ -1,6 +1,6 @@
 ---
 name: create-worktree
-description: Create a separate Git worktree and isolated Docker Compose stack for repository changes. Use by default for each new task unless the user explicitly directs work in the current worktree or names another existing branch or worktree.
+description: Create an isolated task worktree and Compose stack, or troubleshoot an existing worktree's local Compose environment.
 ---
 
 # Create an Isolated Feature Worktree
@@ -37,3 +37,5 @@ Tell the user the branch name, absolute worktree path, and Compose project name 
 The resolver uses Docker Compose's dotenv parser with a minimal probe configuration. The initializer serializes concurrent runs, creates and updates environment files atomically, cleans temporary files on exit, and Git ignores `.env.*` temporary files. Existing legacy and directory-default project names remain available so their volumes stay attached. If a default project's database volume exists, preserve its project name and original password or migrate the database explicitly before switching.
 
 For the environment variable split and cleanup behavior, see [worktree isolation reference](references/multi-session-worktrees.md).
+
+For startup, isolation, port, health-check, or skipped-validation problems in an existing worktree, see [Compose troubleshooting](references/compose-troubleshooting.md). Investigate the affected worktree; do not create another worktree solely for read-only diagnosis.
