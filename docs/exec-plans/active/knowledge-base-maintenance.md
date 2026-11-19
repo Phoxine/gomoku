@@ -1,0 +1,49 @@
+# Make the Gomoku knowledge base maintainable
+
+This plan pilots the [execution plan guide](../../PLANS.md) on the remaining documentation maintenance work. Contributors should be able to detect broken documentation links in a pull request, repeat a documentation audit, and recover durable project decisions from a fresh checkout. The [documentation index](../../index.md), [design index](../../design-docs/index.md), and [core beliefs](../../design-docs/core-beliefs.md) are the starting points.
+
+## Progress
+
+- [x] 2026-11-19. Define the execution plan format and record the remaining documentation work in this plan.
+- [ ] Add and validate the pull request documentation checks.
+- [ ] Record and run the first repeatable documentation audit.
+- [ ] Record a durable decision and validate the handoff in a fresh worktree.
+
+## Milestones and acceptance
+
+### 1. Add documentation checks to PR CI
+
+From the repository root, inspect the [CI workflow](../../../.github/workflows/ci.yml), [PR template](../../../.github/pull_request_template.md), and [feature documentation guide](../../../.agents/skills/document-feature/SKILL.md). Add a lightweight checker under `scripts/` and wire it into pull requests targeting `main`. Check repository Markdown relative links, index coverage, and a verification status on each design document entry. The design index should cover the domain design, API contract, and schema under `docs/domains/game/`. The product index should cover the product specification pages under `docs/product-specs/`. Add a reminder to the PR template to compare documentation with implementation when changing game rules, API behavior, or database schema. Record the checker invocation and its inputs in this plan.
+
+Acceptance requires a passing run on the corrected checkout. Exercise a broken relative link, an omitted index entry, and a missing design verification status in temporary fixtures. Each should fail with the affected file and the reason. Confirm that the PR's CI runs the check successfully and that the PR description displays the documentation reminder.
+
+### 2. Make the documentation audit repeatable
+
+Create `docs/documentation-audit.md` with a checklist for document owners, stale or unused pages, and differences between documentation and implementation. Start with the [architecture guide](../../../ARCHITECTURE.md), [design evidence](../../design-docs/index.md), and [product specifications](../../product-specs/index.md). For each audited area, record the owning page, the evidence used, the finding or pass result, and any follow-up. Use the checker from milestone 1 for mechanical checks and read the referenced behavior for claims the checker cannot assess.
+
+Acceptance requires a dated audit covering the design and product indexes, with every finding either resolved or assigned a versioned follow-up. Consider scheduled automation after the checklist has been repeated successfully.
+
+### 3. Preserve decisions and test a fresh handoff
+
+Select a decision with lasting impact from a PR review or task discussion. Record the decision, its reason, and useful evidence in the owning design, specification, or plan. Check the [architecture guide](../../../ARCHITECTURE.md) and [API rules](../../../.codex/rules/api.md) when choosing where it belongs. Update navigation if the decision would otherwise be difficult to find.
+
+Use the [worktree setup guide](../../../.agents/skills/create-worktree/SKILL.md) to create a separate checkout of the committed documentation changes, using its own Compose project if container checks are needed. Starting at [AGENTS.md](../../../AGENTS.md), a reviewer should be able to find this plan, locate the decision and its supporting code or tests, and run the documented checker and audit steps using only repository files. Record the commit and the commands and results in this plan.
+
+## Recovery
+
+Run negative checker cases in temporary fixtures. If a PR check fails, keep the plan active, record the failing file and output, correct the smallest affected change, and rerun the same check before pushing again. When resuming work, inspect `git status --short`, compare the branch with `origin/main`, and pick up at the first unchecked milestone. Follow the [delivery workflow](../../../AGENTS.md#git-and-pull-request-workflow) for push validation and volume-preserving cleanup.
+
+## Discoveries
+
+- The design index already links to implementation and test evidence. The current PR workflow has no dedicated documentation check, so the next milestone can validate the existing index and report actionable failures.
+
+## Decisions
+
+- 2026-11-19. Keep the first checker lightweight and start with the current index structure. The documentation audit handles ownership, usage, and accuracy claims that require human judgment.
+- 2026-11-19. Keep game architecture checks and game UI workflow experiments outside this documentation plan so the acceptance criteria stay focused on maintaining the knowledge base.
+
+## Outcomes and retrospective
+
+On 2026-11-19, a read-only handoff walkthrough used the guide, this plan, and the repository to locate the first pending milestone, its CI inputs, and the expected pass and failure cases. The walkthrough identified an ambiguity in index coverage, so milestone 1 now names the pages each index is expected to cover.
+
+Record actual outputs and lessons here as milestones finish. Move this file to `docs/exec-plans/completed/` after all three milestones meet their acceptance criteria.
