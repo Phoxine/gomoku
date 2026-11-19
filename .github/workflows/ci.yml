@@ -9,6 +9,16 @@ permissions:
   pull-requests: read
 
 jobs:
+  documentation:
+    name: Documentation Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check Markdown links and indexes
+        run: python3 scripts/check_docs.py
+
   secret-scan:
     name: Secret Scanning
     runs-on: ubuntu-latest

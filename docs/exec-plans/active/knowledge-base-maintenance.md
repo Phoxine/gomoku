@@ -5,7 +5,7 @@ This plan pilots the [execution plan guide](../../PLANS.md) on the remaining doc
 ## Progress
 
 - [x] 2026-11-19. Define the execution plan format and record the remaining documentation work in this plan.
-- [ ] Add and validate the pull request documentation checks.
+- [x] 2026-11-19. Add the documentation job and PR reminder and validate the checker locally.
 - [ ] Record and run the first repeatable documentation audit.
 - [ ] Record a durable decision and validate the handoff in a fresh worktree.
 
@@ -16,6 +16,8 @@ This plan pilots the [execution plan guide](../../PLANS.md) on the remaining doc
 From the repository root, inspect the [CI workflow](../../../.github/workflows/ci.yml), [PR template](../../../.github/pull_request_template.md), and [feature documentation guide](../../../.agents/skills/document-feature/SKILL.md). Add a lightweight checker under `scripts/` and wire it into pull requests targeting `main`. Check repository Markdown relative links, index coverage, and a verification status on each design document entry. The design index should cover the domain design, API contract, and schema under `docs/domains/game/`. The product index should cover the product specification pages under `docs/product-specs/`. Add a reminder to the PR template to compare documentation with implementation when changing game rules, API behavior, or database schema. Record the checker invocation and its inputs in this plan.
 
 Acceptance requires a passing run on the corrected checkout. Exercise a broken relative link, an omitted index entry, and a missing design verification status in temporary fixtures. Each should fail with the affected file and the reason. Confirm that the PR's CI runs the check successfully and that the PR description displays the documentation reminder.
+
+Run `python3 scripts/check_docs.py` from the repository root. The [checker](../../../scripts/check_docs.py) uses the Git index to find tracked files, including newly staged paths, and reads Markdown from the working tree. It checks relative inline and reference link destinations and section anchors on Markdown pages. Use inline links for index entries. The design table accepts `Verified`, `Partially verified`, and `Pending` in its status column. The command reports offending files and exits with status 1 if any check fails. The PR workflow runs the same command in its Documentation Checks job.
 
 ### 2. Make the documentation audit repeatable
 
@@ -42,10 +44,13 @@ If milestone 1 needs to be rolled back, use `git status --short`, `git diff`, an
 ## Decisions
 
 - 2026-11-19. Keep the first checker lightweight and start with the current index structure. The documentation audit handles ownership, usage, and accuracy claims that require human judgment.
+- 2026-11-19. Use Python's standard library and the Git index so the PR job needs no project dependencies and checks the same tracked paths as a local run.
 - 2026-11-19. Keep game architecture checks and game UI workflow experiments outside this documentation plan so the acceptance criteria stay focused on maintaining the knowledge base.
 
 ## Outcomes and retrospective
 
 On 2026-11-19, a read-only handoff walkthrough used the guide, this plan, and the repository to locate the first pending milestone, its CI inputs, and the expected pass and failure cases. The walkthrough identified an ambiguity in index coverage, so milestone 1 now names the pages each index is expected to cover.
+
+The first checker passed on all 27 tracked Markdown files. In temporary Git fixtures, a broken relative link, an omitted product index entry, a missing design verification status, and a missing heading anchor each returned status 1 with the affected file and reason.
 
 Record actual outputs and lessons here as milestones finish. Move this file to `docs/exec-plans/completed/` after all three milestones meet their acceptance criteria.
