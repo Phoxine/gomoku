@@ -203,6 +203,64 @@ class MarkdownLinksTest(unittest.TestCase):
     def test_inline_comments_do_not_change_heading_anchor_spacing(self) -> None:
         self.assertEqual(heading_anchors(markdown_lines("# A<!--note-->B\n")), {"ab"})
 
+    def test_unclosed_inline_comment_does_not_hide_links(self) -> None:
+        markdown = "text <!-- [Visible](real.md)\n"
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))), [(1, "real.md")]
+        )
+
+    def test_inline_comments_cannot_cross_thematic_breaks(self) -> None:
+        markdown = "text <!-- [Visible](first.md)\n***\n[Visible](second.md) -->\n"
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))),
+            [(1, "first.md"), (3, "second.md")],
+        )
+
+    def test_inline_comment_openers_respect_backslash_parity(self) -> None:
+        markdown = (
+            "text \\<!-- [Visible](first.md) -->\n"
+            "text \\\\<!-- [Ignored](missing.md) --> [Visible](second.md)\n"
+        )
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))),
+            [(1, "first.md"), (2, "second.md")],
+        )
+
+    def test_inline_comments_do_not_create_links(self) -> None:
+        markdown = (
+            "[Example]<!--note-->(first.md)\n"
+            "[Example](<!--note-->second.md)\n"
+            "[Example](docs/<!--note-->third.md)\n"
+            "[Example <!-- [Ignored](missing.md) --> continued](real.md)\n"
+            "[Example](<!--note-->)\n"
+        )
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))),
+            [(3, "docs/<!--note-->third.md"), (4, "real.md"), (5, "!--note--")],
+        )
+        self.assertEqual(
+            heading_anchors(markdown_lines("# [Example]<!--note-->(first.md)\n")),
+            {"examplefirstmd"},
+        )
+
+    def test_short_inline_comments_do_not_hide_following_links(self) -> None:
+        for comment in ("<!-->", "<!--->"):
+            with self.subTest(comment=comment):
+                markdown = f"text {comment} [Visible](real.md) <!-- ordinary -->\n"
+                self.assertEqual(
+                    list(document_links(markdown_lines(markdown))), [(1, "real.md")]
+                )
+
+    def test_comment_like_destination_requires_visible_link_label(self) -> None:
+        markdown = (
+            "\x60[\x60label](<!--[Ignored](missing.md)-->) [Visible](first.md)\n"
+            "[Example <!-- ] --> label](docs/<!--note-->second.md)\n"
+        )
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))),
+            [(1, "first.md"), (2, "docs/<!--note-->second.md")],
+        )
+
     def test_code_span_stops_after_setext_heading(self) -> None:
         markdown = "\x60heading\n===\n[Visible](real.md)\x60\n"
         self.assertEqual(

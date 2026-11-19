@@ -20,8 +20,11 @@ PRODUCT_INDEX = PurePosixPath("docs/product-specs/index.md")
 DESIGN_DIRECTORY = PurePosixPath("docs/domains/game")
 VERIFICATION_STATUSES = {"verified", "partially verified", "pending"}
 
+# Keep inline comments opaque while parsing links and preserve source offsets.
+COMMENT_MASK = "\x00"
 DESTINATION = (
-    r"<(?P<angle>(?:\\.|[^<>\n\\])+)>|(?P<bare>(?:\\.|[^()\s\\]|\([^()\s]*\))+)"
+    r"<(?P<angle>(?:\\[^\n\x00]|[^<>\n\\\x00])+)>|"
+    r"(?P<bare>(?!<)(?:\\[^\n\x00]|[^()\s\\\x00]|\([^()\s\x00]*\))+)"
 )
 LINK_SPACE = r"[ \t]*(?:\n[ \t]*)?"
 TITLE_LINE_BREAK = r"\n(?![ \t]*\n)"
@@ -31,10 +34,14 @@ TITLE = (
     rf"\((?:\\.|[^()\\\n]|{TITLE_LINE_BREAK})*\))"
 )
 OPTIONAL_TITLE = rf"(?:(?=[ \t\n]){LINK_SPACE}{TITLE})?"
-LINK = re.compile(
-    r"(?<!\\)!?\[(?P<label>(?:\\.|[^\[\]\\\n]|\[[^\[\]\n]*\]|\n(?![ \t]*\n))*)\]\("
-    + LINK_SPACE
-    + rf"(?:{DESTINATION}){OPTIONAL_TITLE}{LINK_SPACE}\)"
+LABEL_CHARACTER = r"\\.|[^\[\]\\\n]|\[[^\[\]\n]*\]|\n(?![ \t]*\n)"
+LINK_TAIL = rf"\]\({LINK_SPACE}(?:{DESTINATION}){OPTIONAL_TITLE}{LINK_SPACE}\)"
+LINK = re.compile(rf"(?<!\\)!?\[(?P<label>(?:{LABEL_CHARACTER})*){LINK_TAIL}")
+COMMENT_IN_LABEL = r"<!--(?:-?>|(?:[^\n]|\n(?![ \t]*\n))*?-->)"
+# Consume each comment as a unit, including any brackets inside it.
+LINK_WITH_COMMENTS = re.compile(
+    rf"(?<!\\)!?\[(?P<label>(?:(?=(?P<token>{COMMENT_IN_LABEL}|{LABEL_CHARACTER}))"
+    rf"(?P=token))*){LINK_TAIL}"
 )
 REFERENCE = re.compile(
     rf"^[ ]{{0,3}}\[(?P<name>[^\]\n]+)\]:{LINK_SPACE}"
@@ -47,6 +54,7 @@ QUOTE = re.compile(r"^ {0,3}>[ \t]?")
 INDENT = re.compile(r"^[ \t]*")
 LIST_ITEM = re.compile(r"^ {0,3}(?:[-+*]|[0-9]{1,9}[.)]) {1,4}(?=\S)")
 THEMATIC_BREAK = r"(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})(?=\n|$)"
+THEMATIC_LINE = re.compile(rf"^ {{0,3}}{THEMATIC_BREAK}")
 INLINE_BOUNDARY = (
     r"(?: {0,3}>[ \t]?)*[ \t]*"
     rf"(?:\n|#{{1,6}}(?=[ \t\n]|$)|~{{3,}}|\x60{{3,}}|<!--|{THEMATIC_BREAK})"
@@ -61,7 +69,7 @@ DOCUMENT_LITERAL = re.compile(
     REFERENCE.pattern + "|" + INLINE_CODE.pattern, re.MULTILINE
 )
 COMMENT_OR_LITERAL = re.compile(
-    r"(?P<comment><!--[\s\S]*?(?:-->|\Z))|" + DOCUMENT_LITERAL.pattern,
+    r"(?<!\\)(?:\\\\)*(?P<comment><!--(?:-?>)?)|" + DOCUMENT_LITERAL.pattern,
     re.MULTILINE,
 )
 BLOCK_COMMENT = re.compile(r"^ {0,3}<!--")
@@ -87,7 +95,11 @@ def within_container(container: Container, parent: Container) -> bool:
 def markdown_blocks(lines: list[MarkdownLine]) -> Iterator[list[MarkdownLine]]:
     def block_key(pair: tuple[int, MarkdownLine]) -> tuple[int, Container, int]:
         index, (number, container, line) = pair
-        boundary = number if not line.strip() or ATX_HEADING.match(line) else 0
+        boundary = (
+            number
+            if not line.strip() or ATX_HEADING.match(line) or THEMATIC_LINE.match(line)
+            else 0
+        )
         return number - index, container, boundary
 
     for _, group in groupby(enumerate(lines), key=block_key):
@@ -111,6 +123,7 @@ def markdown_lines(content: str) -> list[MarkdownLine]:
     list_items: list[tuple[int, int]] = []
     in_comment = False
     in_paragraph = False
+    content = content.replace(COMMENT_MASK, "\ufffd")
     for number, line in enumerate(content.splitlines(), 1):
         depth = 0
         block_container = fence_container if fence else comment_container
@@ -176,15 +189,47 @@ def markdown_lines(content: str) -> list[MarkdownLine]:
     cleaned: list[MarkdownLine] = []
     for block in markdown_blocks(lines):
         text = "\n".join(line for _, _, line in block)
-        visible = COMMENT_OR_LITERAL.sub(
-            lambda match: "\n" * match[0].count("\n") if match["comment"] else match[0],
-            text,
-        )
+        visible = mask_inline_comments(text)
         cleaned.extend(
             (number, container, line)
             for (number, container, _), line in zip(block, visible.split("\n"))
         )
     return cleaned
+
+
+def mask_inline_comments(text: str) -> str:
+    if "<!--" not in text:
+        return text
+
+    # Comment syntax can appear literally in a destination or title.
+    links = list(LINK_WITH_COMMENTS.finditer(text))
+    tail_offsets = [link.end("label") for link in links]
+    last_close = text.rfind("-->")
+    parts: list[str] = []
+    literals: list[tuple[int, int]] = []
+    offset = search_start = 0
+    while match := COMMENT_OR_LITERAL.search(text, search_start):
+        search_start = match.end()
+        if (opener := match["comment"]) is None:
+            literals.append(match.span())
+            continue
+        start = match.start("comment")
+        link_index = bisect_right(tail_offsets, start) - 1
+        if link_index >= 0 and start < links[link_index].end():
+            link_start = links[link_index].start()
+            literal = bisect_right(literals, (link_start, len(text))) - 1
+            if literal < 0 or link_start >= literals[literal][1]:
+                continue
+        if opener == "<!--":
+            if search_start > last_close:
+                continue
+            search_start = text.index("-->", search_start) + 3
+        parts.append(text[offset:start])
+        parts.append(re.sub(r"[^\n]", COMMENT_MASK, text[start:search_start]))
+        literals.append((start, search_start))
+        offset = search_start
+    parts.append(text[offset:])
+    return "".join(parts)
 
 
 def index_link_destinations(line: str) -> list[str]:
@@ -281,6 +326,7 @@ def heading_anchors(lines: list[MarkdownLine]) -> set[str]:
         if text:
             text = LINK.sub(r"\g<label>", text)
             text = UNDERSCORE_EMPHASIS.sub(r"\2", text)
+            text = text.replace(COMMENT_MASK, "")
             slug = re.sub(r"[^\w -]", "", unescape(text).strip().lower())
             slug = slug.replace(" ", "-")
             unique_slug = slug
