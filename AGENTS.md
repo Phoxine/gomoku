@@ -26,6 +26,8 @@ Every service function requires a corresponding unit test in [`src/tests/`](src/
 bash scripts/compose.sh exec app uv run pytest
 ```
 
+When a PR adds executable CI tooling or changes its behavior, include version-controlled tests for the changed behavior in the same PR and run them in the relevant CI job. For a validation tool, cover a passing input and a representative rejected input, asserting the expected exit status or diagnostic. Committed tests may create temporary fixtures. Workflow edits that preserve tool behavior, such as renaming a job, follow the existing validation process. See the [documentation checker](https://github.com/Phoxine/gomoku/blob/f6a2e43c264d9a7100aaa3d2c85f18b1a28ef190/scripts/check_docs.py) and its [regression tests](https://github.com/Phoxine/gomoku/blob/f6a2e43c264d9a7100aaa3d2c85f18b1a28ef190/scripts/tests/check_docs_test.py) for an example.
+
 ---
 
 ## 🤖 Subagent Orchestration Strategy
