@@ -21,14 +21,14 @@ Browser → Django API → GameApplicationService → GameRepository → Django 
 
 ## Architectural boundaries
 
-- HTTP handlers use DTOs at the JSON boundary and call the application service for game operations. The repository owns ORM access and returns domain state to the application service.
+- HTTP handlers translate between JSON and application service inputs and outputs. The repository owns ORM access and returns domain state to the application service. See the [API rules](.codex/rules/api.md) for DTO and API layer requirements.
 - The game rules service and state types are independent of Django and PostgreSQL. The application service owns orchestration, including transactions, and the model can reuse the rules service for its empty-board default.
 - Moves are applied to a 15×15 board. The rules service owns the conditions for valid moves, wins, draws, and completed games, so callers share the same transition rules.
 
 ## Cross-cutting concerns
 
 - **Concurrent moves.** The application service holds a transaction while the repository locks the game row, the rules service computes the next state, and the repository saves it. The lock serializes moves for the same game.
-- **HTTP security.** Django enforces CSRF checks on state-changing requests. Access to a game is currently based on knowing its ID and being able to reach the server.
+- **HTTP security.** Django enforces CSRF checks on state-changing requests. Access to a game is currently based on knowing its ID and being able to reach the server. See the [security rules](.codex/rules/security.md) for input, credential, logging, and SQL requirements.
 - **Development isolation.** Each worktree uses a separate Docker Compose project for Django and PostgreSQL. [Development setup](README.md#development-setup)
 
 ## Detailed contracts
