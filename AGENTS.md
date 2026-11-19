@@ -7,6 +7,7 @@ This is a web-based interactive Gomoku game built with Python 3.14 + Django + Dj
 
 - **Start development or run tests.** See [Environment setup and testing](#environment-setup-and-testing).
 - **Find code or product behavior.** Use the [architecture code map](ARCHITECTURE.md#code-map) and the [documentation index](docs/index.md).
+- **Plan multi-session work, complex features, or major refactors.** See the [execution plan guide](docs/PLANS.md).
 - **Change game rules.** Start with the [game service design](docs/domains/game/context-designs.md#game-service), [rules tests](src/tests/game_service_test.py), and [state transition tests](src/tests/game_state_transition_test.py).
 - **Change an API or database schema.** Read the [API rules](.codex/rules/api.md) and [game API contract](docs/domains/game/apis.md). For schema work, see the [database schema](docs/domains/game/db-schemas.md) and the [migration skill](.agents/skills/migrate/SKILL.md).
 - **Fix an issue or review a change.** Use the [issue fix skill](.agents/skills/fix-issue/SKILL.md) or the [review skill](.agents/skills/review/SKILL.md).
