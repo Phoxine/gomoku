@@ -25,13 +25,15 @@ Acceptance requires a dated audit covering the design and product indexes, with 
 
 ### 3. Preserve decisions and test a fresh handoff
 
-Select a decision with lasting impact from a PR review or task discussion. Record the decision, its reason, and useful evidence in the owning design, specification, or plan. Check the [architecture guide](../../../ARCHITECTURE.md) and [API rules](../../../.codex/rules/api.md) when choosing where it belongs. Update navigation if the decision would otherwise be difficult to find.
+Select a durable product or architecture decision from a PR review or task discussion. Record the decision, its reason, and supporting evidence in the document that owns it, such as the product specification, domain design, or API contract. Link to that record from this plan. Check the [architecture guide](../../../ARCHITECTURE.md) and [API rules](../../../.codex/rules/api.md) when choosing where it belongs. Update navigation if the decision would otherwise be difficult to find.
 
-Use the [worktree setup guide](../../../.agents/skills/create-worktree/SKILL.md) to create a separate checkout of the committed documentation changes, using its own Compose project if container checks are needed. Starting at [AGENTS.md](../../../AGENTS.md), a reviewer should be able to find this plan, locate the decision and its supporting code or tests, and run the documented checker and audit steps using only repository files. Record the commit and the commands and results in this plan.
+Use the [worktree setup guide](../../../.agents/skills/create-worktree/SKILL.md) to create a separate checkout of the committed documentation changes, using its own Compose project if container checks are needed. Starting at [AGENTS.md](../../../AGENTS.md), a reviewer should be able to find this plan, follow its link to the decision in the owning document, locate the supporting code or tests, and run the documented checker and audit steps using only repository files. Record the commit and the commands and results in this plan.
 
 ## Recovery
 
 Run negative checker cases in temporary fixtures. If a PR check fails, keep the plan active, record the failing file and output, correct the smallest affected change, and rerun the same check before pushing again. When resuming work, inspect `git status --short`, compare the branch with `origin/main`, and pick up at the first unchecked milestone. Follow the [delivery workflow](../../../AGENTS.md#git-and-pull-request-workflow) for push validation and volume-preserving cleanup.
+
+If milestone 1 needs to be rolled back, use `git status --short`, `git diff`, and `git diff --cached` to identify its changes to the checker under `scripts/`, the CI workflow, and the PR template. For uncommitted work, undo only the milestone's edits and remove a new checker file only if it contains no unrelated work. For committed work, inspect the commit with `git show` and use `git revert` if it contains only milestone 1 changes. If edits are mixed, make a corrective commit that reverses only the milestone's changes. Review the resulting diff to confirm that unrelated work is intact and rerun the remaining checks. In Progress, record the rollback, mark milestone 1 pending again, and reopen any dependent acceptance checks that the rollback invalidated.
 
 ## Discoveries
 
