@@ -207,6 +207,11 @@ def mask_inline_comments(text: str) -> str:
     last_close = text.rfind("-->")
     parts: list[str] = []
     literals: list[tuple[int, int]] = []
+
+    def is_literal(position: int) -> bool:
+        index = bisect_right(literals, (position, len(text))) - 1
+        return index >= 0 and position < literals[index][1]
+
     offset = search_start = 0
     while match := COMMENT_OR_LITERAL.search(text, search_start):
         search_start = match.end()
@@ -215,10 +220,13 @@ def mask_inline_comments(text: str) -> str:
             continue
         start = match.start("comment")
         link_index = bisect_right(tail_offsets, start) - 1
-        if link_index >= 0 and start < links[link_index].end():
-            link_start = links[link_index].start()
-            literal = bisect_right(literals, (link_start, len(text))) - 1
-            if literal < 0 or link_start >= literals[literal][1]:
+        if link_index >= 0:
+            link = links[link_index]
+            if (
+                start < link.end()
+                and not is_literal(link.start("label") - 1)
+                and not is_literal(link.end("label"))
+            ):
                 continue
         if opener == "<!--":
             if search_start > last_close:

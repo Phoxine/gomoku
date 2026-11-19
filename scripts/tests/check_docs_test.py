@@ -261,6 +261,16 @@ class MarkdownLinksTest(unittest.TestCase):
             [(1, "first.md"), (2, "docs/<!--note-->second.md")],
         )
 
+    def test_comment_like_destination_requires_visible_label_end(self) -> None:
+        markdown = (
+            "[a \x60b](docs/\x60<!--[Ignored](missing.md)-->)\n"
+            "[a \x60b\x60](docs/<!--note-->real.md)\n"
+        )
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))),
+            [(2, "docs/<!--note-->real.md")],
+        )
+
     def test_code_span_stops_after_setext_heading(self) -> None:
         markdown = "\x60heading\n===\n[Visible](real.md)\x60\n"
         self.assertEqual(
