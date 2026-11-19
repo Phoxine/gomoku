@@ -51,16 +51,13 @@ Use specialized subagents to support independent work while respecting higher-pr
 
 ## 🛠️ Architecture & Coding Standards
 - **Naming Conventions:** Pythonic `snake_case` for files/functions (with type hints) and `PascalCase` for classes.
-- **Layer Isolation:** Django views/APIs ([`src/app/api/`](src/app/api/)) call domain services only; domain services communicate with databases via domain repositories. **Never import Django ORM Models directly into the API layer.** See [.codex/rules/api.md](.codex/rules/api.md).
-- **DTOs:** Enforce DTO usage for API requests and responses; never return ORM models directly (see [.codex/rules/api.md](.codex/rules/api.md)).
+- **Application boundaries.** See the [architecture guide](ARCHITECTURE.md#architectural-boundaries) for dependency direction and the [API rules](.codex/rules/api.md) for DTO and ORM access requirements.
 - **Type Hinting:** Strictly use Python 3.14 native type hinting (e.g., `list[int]`, `dict[str, int]`).
 
 ---
 
 ## 🔒 Security & Secrets Management
-Supplemented by a Pre-Tool-Use command-text hook (not a replacement for file-access controls):
-- **Zero Raw SQL:** Use Django ORM or parameterized queries; raw string formatting is prohibited.
-- **Credential Protection:** Never read, output, or commit any `.env`, `*.pem`, `*.key`, or credential files. The hook blocks selected command patterns only; it is not comprehensive file-access protection. See [.codex/rules/security.md](.codex/rules/security.md).
+Never read, print, or commit credentials. Follow the [security rules](.codex/rules/security.md) for protected files, input validation, SQL, and logging. The Pre-Tool-Use hook checks selected command patterns. File-access restrictions apply independently.
 
 ---
 
