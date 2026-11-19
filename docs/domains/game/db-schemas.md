@@ -1,16 +1,16 @@
 # Game Database Schema
 
-The `games` table stores each game. Its model and initial migration are in `app.domain.game`.
+The `games` table stores each game. Its model and initial migration are in `app.domain.game`. Django supplies the defaults and automatic timestamps shown below. The table has no database column defaults.
 
-| Column | Type | Nullable | Default | Constraints | Description |
+| Column | PostgreSQL type | Nullable | Django default or automatic value | Constraints | Description |
 | --- | --- | --- | --- | --- | --- |
 | `id` | UUID | No | Generated UUID4 | Primary key | Game identifier. |
-| `board` | JSON | No | Fresh 15×15 empty board | 15 rows of 15 integer cells with values `0`, `1`, or `2`. | Board cells, initially all zero. |
-| `current_player` | positive small integer | No | `1` | Must be `1` or `2`. | Player whose turn it is. |
+| `board` | JSONB | No | Fresh 15×15 empty board | 15 rows of 15 integer cells with values `0`, `1`, or `2`. | Board cells, initially all zero. |
+| `current_player` | SMALLINT | No | `1` | Must be `1` or `2`. | Player whose turn it is, or the last mover when the game has ended. |
 | `status` | VARCHAR(16) | No | `in_progress` | Must be `in_progress`, `won`, or `draw`. | Game status. |
-| `winner` | positive small integer | Yes | `null` | Must be `1` or `2` for a won game and null otherwise. | Winning player, if any. |
-| `created_at` | timestamp | No | Set on creation | None | Creation time. |
-| `updated_at` | timestamp | No | Set on save | None | Last update time. |
+| `winner` | SMALLINT | Yes | `null` | Must be `1` or `2` for a won game and null otherwise. | Winning player, if any. |
+| `created_at` | TIMESTAMP WITH TIME ZONE | No | Set on creation | None | Creation time. |
+| `updated_at` | TIMESTAMP WITH TIME ZONE | No | Set on save | None | Last update time. |
 
 | Index | Columns | Type | Purpose |
 | --- | --- | --- | --- |
