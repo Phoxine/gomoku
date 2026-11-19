@@ -18,6 +18,8 @@ jobs:
           persist-credentials: false
       - name: Check Markdown links and indexes
         run: python3 scripts/check_docs.py
+      - name: Test documentation checker
+        run: python3 -m unittest discover -s scripts/tests -p check_docs_test.py
 
   secret-scan:
     name: Secret Scanning
