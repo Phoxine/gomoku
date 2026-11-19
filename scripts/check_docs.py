@@ -52,7 +52,8 @@ INLINE_BOUNDARY = (
     rf"(?:\n|#{{1,6}}(?=[ \t\n]|$)|~{{3,}}|\x60{{3,}}|<!--|{THEMATIC_BREAK})"
 )
 INLINE_CODE = re.compile(
-    r"(?<!\x60)(?P<code_ticks>\x60+)(?!\x60)"
+    # Backslashes escape in pairs. An unpaired one escapes the first backtick.
+    r"(?<![\\\x60])(?:\\\\)*(?:\\\x60)?(?P<code_ticks>\x60+)(?!\x60)"
     rf"(?:[^\n]|\n(?!{INLINE_BOUNDARY}))*?"
     r"(?<!\x60)(?P=code_ticks)(?!\x60)"
 )
@@ -60,13 +61,15 @@ DOCUMENT_LITERAL = re.compile(
     REFERENCE.pattern + "|" + INLINE_CODE.pattern, re.MULTILINE
 )
 COMMENT_OR_LITERAL = re.compile(
-    r"<!--[\s\S]*?(?:-->|\Z)|" + DOCUMENT_LITERAL.pattern, re.MULTILINE
+    r"(?P<comment><!--[\s\S]*?(?:-->|\Z))|" + DOCUMENT_LITERAL.pattern,
+    re.MULTILINE,
 )
-COMMENT_START = re.compile(INLINE_CODE.pattern + r"|<!--")
+BLOCK_COMMENT = re.compile(r"^ {0,3}<!--")
 MARKDOWN_ESCAPE = re.compile(
     rf"\\([{re.escape(string.punctuation)}])|&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]+);"
 )
 HEADING = re.compile(r"^[ ]{0,3}#{1,6}[ \t]+(.+?)\s*#*\s*$")
+ATX_HEADING = re.compile(r"^ {0,3}#{1,6}(?:[ \t]|$)")
 SETEXT = re.compile(r"^[ ]{0,3}(?:=+|-+)[ \t]*$")
 UNDERSCORE_EMPHASIS = re.compile(r"(?<!\w)(_+)(?=\S)(.+?)(?<=\S)\1(?!\w)")
 ANCHOR = re.compile(r"""<a\s+[^>]*?\b(?:id|name)=["']([^"']+)["']""")
@@ -81,16 +84,25 @@ def within_container(container: Container, parent: Container) -> bool:
     return container[0] >= depth and container[1][: len(items)] == items
 
 
+def markdown_blocks(lines: list[MarkdownLine]) -> Iterator[list[MarkdownLine]]:
+    def block_key(pair: tuple[int, MarkdownLine]) -> tuple[int, Container, int]:
+        index, (number, container, line) = pair
+        boundary = number if not line.strip() or ATX_HEADING.match(line) else 0
+        return number - index, container, boundary
+
+    for _, group in groupby(enumerate(lines), key=block_key):
+        block: list[MarkdownLine] = []
+        for _, line in group:
+            block.append(line)
+            if SETEXT.fullmatch(line[2]):
+                yield block
+                block = []
+        if block:
+            yield block
+
+
 def markdown_lines(content: str) -> list[MarkdownLine]:
     """Keep source line numbers while skipping code blocks and comments."""
-    if "<!--" in content:
-        # An inline code span may start before the line containing the marker.
-        content = COMMENT_OR_LITERAL.sub(
-            lambda match: (
-                match[0].replace("<!--", "\x00!--") if match["code_ticks"] else match[0]
-            ),
-            content,
-        )
     lines = []
     fence = ""
     root: Container = (0, ())
@@ -101,7 +113,8 @@ def markdown_lines(content: str) -> list[MarkdownLine]:
     in_paragraph = False
     for number, line in enumerate(content.splitlines(), 1):
         depth = 0
-        while (not fence or depth < fence_container[0]) and (
+        block_container = fence_container if fence else comment_container
+        while (not (fence or in_comment) or depth < block_container[0]) and (
             quote := QUOTE.match(line)
         ):
             depth += 1
@@ -122,6 +135,9 @@ def markdown_lines(content: str) -> list[MarkdownLine]:
             in_paragraph = False
         if not within_container(container, comment_container):
             in_comment = False
+        if in_comment:
+            in_comment = "-->" not in line
+            continue
 
         if fence and within_container(container, fence_container):
             delimiter = FENCE.match(line)
@@ -134,52 +150,41 @@ def markdown_lines(content: str) -> list[MarkdownLine]:
                 fence = ""
             continue
         fence = ""
-        if not in_comment and (item := LIST_ITEM.match(line)):
+        if item := LIST_ITEM.match(line):
             list_items.append((margin + item.end(), number))
             container = (depth, (*container[1], number))
             line = line[item.end() :]
             in_paragraph = False
         previous_container = container
-        delimiter = None if in_comment else FENCE.match(line)
+        delimiter = FENCE.match(line)
         if delimiter and (delimiter[1].startswith("~") or "\x60" not in delimiter[2]):
             fence, fence_container = delimiter[1], container
             in_paragraph = False
             continue
-        if not in_comment and not in_paragraph and line.startswith("    "):
+        if not in_paragraph and line.startswith("    "):
             continue
-        if not in_comment:
+        if BLOCK_COMMENT.match(line):
             comment_container = container
-        visible, in_comment = strip_comments(line, in_comment)
-        lines.append((number, container, visible))
-        in_paragraph = bool(visible.strip()) and not (
-            HEADING.match(visible) or SETEXT.fullmatch(visible)
+            in_comment = "-->" not in line
+            in_paragraph = False
+            continue
+        lines.append((number, container, line))
+        in_paragraph = bool(line.strip()) and not (
+            ATX_HEADING.match(line) or SETEXT.fullmatch(line)
         )
-    return lines
-
-
-def strip_comments(line: str, in_comment: bool) -> tuple[str, bool]:
-    visible = []
-    offset = 0
-    while True:
-        if in_comment:
-            closing = line.find("-->", offset)
-            if closing == -1:
-                return "".join(visible), True
-            offset = closing + 3
-        opening = next(
-            (
-                match
-                for match in COMMENT_START.finditer(line, offset)
-                if match[0] == "<!--"
-            ),
-            None,
+    # Inline comments and code spans compete within the same block.
+    cleaned: list[MarkdownLine] = []
+    for block in markdown_blocks(lines):
+        text = "\n".join(line for _, _, line in block)
+        visible = COMMENT_OR_LITERAL.sub(
+            lambda match: "\n" * match[0].count("\n") if match["comment"] else match[0],
+            text,
         )
-        if opening is None:
-            visible.append(line[offset:])
-            return "".join(visible), False
-        visible.append(line[offset : opening.start()])
-        offset = opening.end()
-        in_comment = True
+        cleaned.extend(
+            (number, container, line)
+            for (number, container, _), line in zip(block, visible.split("\n"))
+        )
+    return cleaned
 
 
 def index_link_destinations(line: str) -> list[str]:
@@ -201,14 +206,9 @@ def document_links(
     lines: list[MarkdownLine], *, include_definitions: bool = True
 ) -> Iterator[tuple[int, str]]:
     """Find links across visible lines while retaining source line numbers."""
-    # A change in source-line offset indicates a skipped block.
-    groups = groupby(
-        enumerate(lines), key=lambda pair: (pair[1][0] - pair[0], pair[1][1])
-    )
     definitions: dict[str, str] = {}
     uses: list[tuple[int, str]] = []
-    for _, group in groups:
-        block = [line for _, line in group]
+    for block in markdown_blocks(lines):
         offsets = [0]
         for _, _, line in block:
             offsets.append(offsets[-1] + len(line) + 1)
@@ -230,10 +230,14 @@ def document_links(
                 definitions.setdefault(
                     reference_label(match["name"]), match["angle"] or match["bare"]
                 )
-            for match in REFERENCE_USE.finditer(LINK.sub(mask_match, inline_text)):
+            reference_text = LINK.sub(mask_match, inline_text)
+            for match in REFERENCE_USE.finditer(reference_text):
                 if not match[1]:
+                    label_group = 3 if match[3] else 2
                     number = block[bisect_right(offsets, match.start()) - 1][0]
-                    uses.append((number, reference_label(match[3] or match[2])))
+                    label_start, label_end = match.span(label_group)
+                    # Masking preserves offsets; recover the label from source text.
+                    uses.append((number, reference_label(text[label_start:label_end])))
     for number, label in uses:
         if label in definitions:
             yield number, definitions[label]

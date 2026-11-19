@@ -8,6 +8,7 @@ from scripts.check_docs import (
     PRODUCT_INDEX,
     check_indexes,
     document_links,
+    heading_anchors,
     markdown_lines,
     relative_target,
 )
@@ -138,6 +139,77 @@ class MarkdownLinksTest(unittest.TestCase):
                     + "[Visible](valid.md) with \x60code\x60\n"
                 )
                 self.assertEqual(list(document_links(markdown_lines(markdown))), [link])
+
+    def test_escaped_backtick_does_not_open_code_span(self) -> None:
+        markdown = "\\\x60literal\n[Visible](missing.md)\x60\n"
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))), [(2, "missing.md")]
+        )
+
+    def test_even_backslashes_allow_code_span_openers(self) -> None:
+        markdown = "\\\\\x60[Ignored](missing.md)\\\x60 [Visible](real.md)\n"
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))), [(1, "real.md")]
+        )
+
+    def test_code_span_stops_at_heading_boundary(self) -> None:
+        markdown = "# \x60literal\n[Visible](missing.md)\x60\n"
+        for prefix in ("", "> ", "- "):
+            with self.subTest(prefix=prefix):
+                continuation = "  " if prefix == "- " else prefix
+                heading, paragraph = markdown.splitlines()
+                content = f"{prefix}{heading}\n{continuation}{paragraph}\n"
+                self.assertEqual(
+                    list(document_links(markdown_lines(content))), [(2, "missing.md")]
+                )
+
+    def test_comment_boundaries_follow_markdown_container(self) -> None:
+        markdown = (
+            "> <!-- unclosed\n"
+            "`example\n"
+            "literal <!--` [Visible](real.md)\n"
+            "[Visible](next.md)\n"
+        )
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))),
+            [(3, "real.md"), (4, "next.md")],
+        )
+
+    def test_reference_labels_are_resolved_from_original_text(self) -> None:
+        markdown = (
+            "[`Local`] [Label][`Local`] [`Local`][]\n\n"
+            "`[\x60\x60Local\x60\x60]`\n\n"
+            "[`Local`]: local.md\n[\x60\x60Local\x60\x60]: unused.md\n"
+        )
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown), include_definitions=False)),
+            [(1, "local.md"), (1, "local.md"), (1, "local.md")],
+        )
+
+    def test_fences_inside_html_comments_do_not_hide_later_links(self) -> None:
+        markdown = "<!--\n~~~\n[Ignored](missing.md)\n-->\n[Visible](real.md)\n"
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))), [(5, "real.md")]
+        )
+
+    def test_list_comment_content_does_not_start_markdown_blocks(self) -> None:
+        markdown = (
+            "- <!--\n  > [Ignored](missing.md)\n  ~~~\n  -->\n  [Visible](real.md)\n"
+        )
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))), [(5, "real.md")]
+        )
+
+    def test_inline_comments_do_not_change_heading_anchor_spacing(self) -> None:
+        self.assertEqual(heading_anchors(markdown_lines("# A<!--note-->B\n")), {"ab"})
+
+    def test_code_span_stops_after_setext_heading(self) -> None:
+        markdown = "\x60heading\n===\n[Visible](real.md)\x60\n"
+        self.assertEqual(
+            list(document_links(markdown_lines(markdown))), [(3, "real.md")]
+        )
+        markdown = "\x60heading\n[Ignored](missing.md)\x60\n===\n"
+        self.assertEqual(list(document_links(markdown_lines(markdown))), [])
 
     def test_index_checks_count_multiline_entries_and_report_omissions(self) -> None:
         product = PRODUCT_INDEX.parent / "local.md"
