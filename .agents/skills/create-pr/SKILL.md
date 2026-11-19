@@ -1,11 +1,11 @@
 ---
 name: create-pr
-description: Prepare, validate, push, and open a GitHub pull request for changes in this repository when the user asks to create or submit a PR.
+description: Validate, push, and open or update a GitHub pull request when delivering completed code or tracked documentation changes, or when the user asks to submit a PR.
 ---
 
 # Create a Pull Request
 
-Follow this workflow when the user asks to push changes and open a GitHub pull request (PR). Do not merge the PR unless the user explicitly asks.
+Follow the [repository delivery policy](../../../AGENTS.md#git-and-pull-request-workflow) for completed changes and any explicit delivery limits. Use this workflow when the user asks to open or submit a GitHub pull request (PR) as well. Merge only with explicit authorization.
 
 ## 1. Confirm the worktree and branch
 
@@ -27,6 +27,7 @@ Follow this workflow when the user asks to push changes and open a GitHub pull r
 - Use the isolated Docker Compose environment assigned to this worktree. Never point commands at another worktree's project or database.
 - Before every push, ensure this worktree's Compose services are running with `bash scripts/compose.sh up --build -d`, then run `bash .codex/hooks/stop-validation.sh`.
 - The Stop hook runs formatting, lint, and the full test suite against this worktree's app container. If it fails, fix the issue in this branch and rerun the hook until it passes. If it prints `Skipping final validation`, validation did not run, even if the hook exits successfully. Do not push. Resolve the Compose startup issue, confirm `app` appears in `bash scripts/compose.sh ps --status running --services`, then rerun the hook and confirm formatting, lint, and tests completed without being skipped.
+- If a validation fix changes repository files, review and commit those fixes as in step 2 before rerunning the full hook. Before pushing, confirm that all repository inputs used by validation, including source, tests, and configuration such as `pyproject.toml`, match the commit being pushed. If any inputs differ, rerun the full validation against the intended commit without including unrelated changes.
 - Run `git diff --check` and confirm the working tree contains no unintended changes before pushing.
 
 ## 4. Push the branch
@@ -46,6 +47,8 @@ bash scripts/stop-local-stack.sh
 For a legacy Compose project name, verify that the project belongs to the current worktree before using `bash scripts/compose.sh down`.
 
 Obtain explicit authorization before deleting the worktree's database volume, including with `down -v`, `down --volumes`, or direct volume removal.
+
+For a push-only request, report the push and stop after cleanup. Continue to step 5 when PR delivery is in scope.
 
 ## 5. Create the PR
 
@@ -78,11 +81,16 @@ Obtain explicit authorization before deleting the worktree's database volume, in
   ````
 
 - Format the PR title as `<type>(<scope>): <description>`, for example, `feature(auth): add user login`. Use `feature`, `fix`, `infra`, `docs`, or `refactor` as the type, and keep the description concise and focused on the change.
-- Check for an existing PR for the branch before creating one. Target `main` unless the user or repository workflow specifies another base.
-- Create the PR with the GitHub CLI, for example:
+- Determine the target base branch from the user's request or repository workflow, defaulting to `main`. Check for an open PR whose head matches the repository and branch just pushed and whose base matches the selected target. Reuse a matching PR and report its URL. If none matches, create a PR with the selected base.
+- Use the selected base in both GitHub CLI commands. For example, for a same-repository PR targeting `main`:
 
   ```bash
-  gh pr create --base main --head "$(git branch --show-current)" --title "<title>" --body-file <body-file>
+  base_branch=main
+  head_branch="$(git branch --show-current)"
+  gh pr list --state open --base "$base_branch" --head "$head_branch" \
+    --json url,isCrossRepository --jq '.[] | select(.isCrossRepository == false) | .url'
+  # Run only if no open PR matches.
+  gh pr create --base "$base_branch" --head "$head_branch" --title "<title>" --body-file "<body-file>"
   ```
 
 - Report the PR URL, branch, validation results, and any relevant limitation to the user. Do not merge the PR unless explicitly requested.
