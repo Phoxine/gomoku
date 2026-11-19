@@ -17,7 +17,7 @@ From the repository root, inspect the [CI workflow](../../../.github/workflows/c
 
 Acceptance requires a passing run on the corrected checkout. Exercise a broken relative link, an omitted index entry, and a missing design verification status in temporary fixtures. Each should fail with the affected file and the reason. Confirm that the PR's CI runs the check successfully and that the PR description displays the documentation reminder.
 
-Run `python3 scripts/check_docs.py` from the repository root. The [checker](../../../scripts/check_docs.py) uses the Git index to find tracked files, including newly staged paths, and reads Markdown from the working tree. It checks relative inline and reference link destinations and section anchors on Markdown pages. Use inline links for index entries. The design table accepts `Verified`, `Partially verified`, and `Pending` in its status column. The command reports offending files and exits with status 1 if any check fails. The PR workflow runs the same command in its Documentation Checks job.
+Run `python3 scripts/check_docs.py` from the repository root. The [checker](../../../scripts/check_docs.py) uses the Git index to find tracked files, including newly staged paths, and reads Markdown from the working tree. It checks relative inline and reference link destinations and section anchors on Markdown pages. Use inline links in the design table. The product index also supports reference links. The design table accepts `Verified`, `Partially verified`, and `Pending` in its status column. The command reports offending files and exits with status 1 if any check fails. The PR workflow runs the same command in its Documentation Checks job.
 
 ### 2. Make the documentation audit repeatable
 

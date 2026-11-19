@@ -24,21 +24,44 @@ DESTINATION = (
     r"<(?P<angle>(?:\\.|[^<>\n\\])+)>|(?P<bare>(?:\\.|[^()\s\\]|\([^()\s]*\))+)"
 )
 LINK_SPACE = r"[ \t]*(?:\n[ \t]*)?"
-TITLE = r"""(?:"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|\((?:\\.|[^()\\\n])*\))"""
+TITLE_LINE_BREAK = r"\n(?![ \t]*\n)"
+TITLE = (
+    rf"""(?:"(?:\\.|[^"\\\n]|{TITLE_LINE_BREAK})*"|"""
+    rf"""'(?:\\.|[^'\\\n]|{TITLE_LINE_BREAK})*'|"""
+    rf"\((?:\\.|[^()\\\n]|{TITLE_LINE_BREAK})*\))"
+)
+OPTIONAL_TITLE = rf"(?:(?=[ \t\n]){LINK_SPACE}{TITLE})?"
 LINK = re.compile(
     r"(?<!\\)!?\[(?P<label>(?:\\.|[^\[\]\\\n]|\[[^\[\]\n]*\]|\n(?![ \t]*\n))*)\]\("
     + LINK_SPACE
-    + rf"(?:{DESTINATION})(?:(?=[ \t\n]){LINK_SPACE}{TITLE})?{LINK_SPACE}\)"
+    + rf"(?:{DESTINATION}){OPTIONAL_TITLE}{LINK_SPACE}\)"
 )
 REFERENCE = re.compile(
-    rf"^[ ]{{0,3}}\[[^\]\n]+\]:{LINK_SPACE}(?:{DESTINATION})(?=[ \t\n]|$)",
+    rf"^[ ]{{0,3}}\[(?P<name>[^\]\n]+)\]:{LINK_SPACE}"
+    rf"(?:{DESTINATION}){OPTIONAL_TITLE}[ \t]*$",
     re.MULTILINE,
 )
+REFERENCE_USE = re.compile(r"(?<!\\)(!?)\[([^\[\]\n]+)\](?:\[([^\[\]\n]*)\])?")
 FENCE = re.compile(r"^ {0,3}(~{3,}|\x60{3,})(.*)$")
 QUOTE = re.compile(r"^ {0,3}>[ \t]?")
 INDENT = re.compile(r"^[ \t]*")
 LIST_ITEM = re.compile(r"^ {0,3}(?:[-+*]|[0-9]{1,9}[.)]) {1,4}(?=\S)")
-INLINE_CODE = re.compile(r"(?<!\x60)(\x60+)(?!\x60).*?(?<!\x60)\1(?!\x60)")
+THEMATIC_BREAK = r"(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})(?=\n|$)"
+INLINE_BOUNDARY = (
+    r"(?: {0,3}>[ \t]?)*[ \t]*"
+    rf"(?:\n|#{{1,6}}(?=[ \t\n]|$)|~{{3,}}|\x60{{3,}}|<!--|{THEMATIC_BREAK})"
+)
+INLINE_CODE = re.compile(
+    r"(?<!\x60)(?P<code_ticks>\x60+)(?!\x60)"
+    rf"(?:[^\n]|\n(?!{INLINE_BOUNDARY}))*?"
+    r"(?<!\x60)(?P=code_ticks)(?!\x60)"
+)
+DOCUMENT_LITERAL = re.compile(
+    REFERENCE.pattern + "|" + INLINE_CODE.pattern, re.MULTILINE
+)
+COMMENT_OR_LITERAL = re.compile(
+    r"<!--[\s\S]*?(?:-->|\Z)|" + DOCUMENT_LITERAL.pattern, re.MULTILINE
+)
 COMMENT_START = re.compile(INLINE_CODE.pattern + r"|<!--")
 MARKDOWN_ESCAPE = re.compile(
     rf"\\([{re.escape(string.punctuation)}])|&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]+);"
@@ -60,6 +83,14 @@ def within_container(container: Container, parent: Container) -> bool:
 
 def markdown_lines(content: str) -> list[MarkdownLine]:
     """Keep source line numbers while skipping code blocks and comments."""
+    if "<!--" in content:
+        # An inline code span may start before the line containing the marker.
+        content = COMMENT_OR_LITERAL.sub(
+            lambda match: (
+                match[0].replace("<!--", "\x00!--") if match["code_ticks"] else match[0]
+            ),
+            content,
+        )
     lines = []
     fence = ""
     root: Container = (0, ())
@@ -158,6 +189,14 @@ def index_link_destinations(line: str) -> list[str]:
     return [match["angle"] or match["bare"] for match in LINK.finditer(text)]
 
 
+def mask_match(match: re.Match[str]) -> str:
+    return re.sub(r"[^\n]", " ", match[0])
+
+
+def reference_label(label: str) -> str:
+    return " ".join(label.split()).casefold()
+
+
 def document_links(
     lines: list[MarkdownLine], *, include_definitions: bool = True
 ) -> Iterator[tuple[int, str]]:
@@ -166,22 +205,38 @@ def document_links(
     groups = groupby(
         enumerate(lines), key=lambda pair: (pair[1][0] - pair[0], pair[1][1])
     )
+    definitions: dict[str, str] = {}
+    uses: list[tuple[int, str]] = []
     for _, group in groups:
         block = [line for _, line in group]
         offsets = [0]
         for _, _, line in block:
             offsets.append(offsets[-1] + len(line) + 1)
         text = "\n".join(line for _, _, line in block)
-        # Mask code and reference definitions without moving surviving links.
-        text = INLINE_CODE.sub(lambda match: " " * len(match[0]), text)
-        references = list(REFERENCE.finditer(text)) if include_definitions else []
-        inline_text = REFERENCE.sub(lambda match: re.sub(r"[^\n]", " ", match[0]), text)
+        # Earlier code spans and definitions take precedence over text within them.
+        references = [
+            match for match in DOCUMENT_LITERAL.finditer(text) if match["name"]
+        ]
+        inline_text = DOCUMENT_LITERAL.sub(mask_match, text)
         matches = sorted(
-            [*references, *LINK.finditer(inline_text)], key=lambda m: m.start()
+            [*(references if include_definitions else []), *LINK.finditer(inline_text)],
+            key=lambda match: match.start(),
         )
         for match in matches:
             number = block[bisect_right(offsets, match.start()) - 1][0]
             yield number, match["angle"] or match["bare"]
+        if not include_definitions:
+            for match in references:
+                definitions.setdefault(
+                    reference_label(match["name"]), match["angle"] or match["bare"]
+                )
+            for match in REFERENCE_USE.finditer(LINK.sub(mask_match, inline_text)):
+                if not match[1]:
+                    number = block[bisect_right(offsets, match.start()) - 1][0]
+                    uses.append((number, reference_label(match[3] or match[2])))
+    for number, label in uses:
+        if label in definitions:
+            yield number, definitions[label]
 
 
 def relative_target(
