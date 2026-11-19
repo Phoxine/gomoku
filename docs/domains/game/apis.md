@@ -149,4 +149,4 @@ Errors use the following JSON format, for example:
 | `409 Conflict` | `game_finished` | The game has already ended. |
 | `415 Unsupported Media Type` | `unsupported_media_type` | The request content type is not `application/json`. |
 
-A malformed UUID does not match the route and returns Django's default `404` response. Unsupported HTTP methods receive `405 Method Not Allowed`.
+A malformed UUID does not match the route and returns Django's default `404` response. On a matching route, unsupported HTTP methods receive `405 Method Not Allowed` after passing middleware checks such as CSRF.
