@@ -36,3 +36,20 @@ Compared the design pages and their linked source and tests with the verificatio
 | Routes and wire behavior in the [game API contract](domains/game/apis.md) | Compared the [routes](../src/config/urls.py), [handlers](../src/app/api/game_views.py), [DTOs](../src/app/api/game_dto.py), [API integration test](../src/tests/game_api_test.py), and [Django's CSRF guidance](https://docs.djangoproject.com/en/6.1/howto/csrf/). | Routes, fields, and error codes matched. The CSRF guidance overstated the header requirement for form POSTs. | Corrected the [API contract](domains/game/apis.md) to describe the form field and header. |
 | Storage in the [database schema](domains/game/db-schemas.md) | Compared the [model](../src/app/domain/game/model/game.py), [initial migration](../src/app/domain/game/migrations/0001_initial.py), and [board constraint](../src/app/domain/game/model/board_constraint.py). | The documented fields, defaults, nullability, primary key, and check constraints matched the model and migration. | None |
 | Player-visible behavior in the [local two-player specification](product-specs/local-two-player-game.md) | Read the [page template](../src/app/template/game.html), [browser code](../src/app/static/game/game.js), [browser interaction tests](../scripts/tests/game_web_interactions_test.js), and game rules above. | Creating, restoring, and loading games by ID, turns, and win or draw behavior matched the specification. The routes and browser code matched the documented access model and current scope. | None |
+
+### 2026-11-20 quality tracking evaluation
+
+Sampled the [local two-player game](product-specs/local-two-player-game.md) at `d1edcb7` using the [design index](design-docs/index.md) and the audit above. In the quality tracking evaluation worktree, all nine cases passed with `node --test scripts/tests/game_web_interactions_test.js`. After initializing and starting the isolated Compose stack, the following command passed all 49 focused Python cases.
+
+```bash
+bash scripts/compose.sh exec -T app uv run pytest -q tests/game_state_transition_test.py tests/game_service_test.py tests/game_api_test.py tests/game_model_test.py
+```
+
+| Area | Behavior checked and evidence | Status | Gap or follow-up |
+| --- | --- | --- | --- |
+| Player flow | Start and restore a game, play a move, and show the active ID fallback when the clipboard is denied. [Node interactions](../scripts/tests/game_web_interactions_test.js) · [Batch Three browser verification](exec-plans/completed/architecture-validation-and-development-workflow.md) | Verified | None in the sampled behavior. |
+| Rules | Alternate turns, detect wins in four directions, and give wins precedence over a full-board draw. [Transition tests](../src/tests/game_state_transition_test.py) | Verified | None in the sampled behavior. |
+| API | Reject invalid JSON and coordinate types before calling the application service, and pass integer coordinates as a domain move. [API tests](../src/tests/game_api_test.py) | Verified | None in the sampled behavior. |
+| Persistence | Apply the migration, preserve defaults, and reject invalid board or winner values on writes. [PostgreSQL model tests](../src/tests/game_model_test.py) | Verified | None in the sampled behavior. |
+
+An independent reviewer assigned the same status to all four rows from the linked evidence. The sample refreshed the audit with Batch Three evidence for the clipboard and move request boundary. It surfaced no additional gap requiring a separate scorecard. Continue recording evidence and follow-up in this audit. Revisit a scorecard if future audits identify a persistent cross-layer gap or trend that dated audit records make difficult to track.
