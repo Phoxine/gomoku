@@ -7,7 +7,7 @@ This plan pilots the [execution plan guide](../../PLANS.md) on the remaining doc
 - [x] 2026-11-19. Define the execution plan format and record the remaining documentation work in this plan.
 - [x] 2026-11-19. Add the documentation job and PR reminder and validate the checker locally.
 - [x] 2026-11-20. Record and run the first repeatable documentation audit.
-- [ ] Record a durable decision and validate the handoff in a fresh worktree.
+- [x] 2026-11-20. Record the Python image update decision and validate the handoff in a fresh worktree.
 
 ## Milestones and acceptance
 
@@ -58,4 +58,6 @@ The first checker passed on all 27 tracked Markdown files. In temporary Git fixt
 
 The [first documentation audit](../../documentation-audit.md#2026-11-20) recorded ownership, navigation, and source evidence for the design and product indexes. It corrected the API's description of CSRF token submission and rechecked the API and schema edits made since the design index's verification baseline. The documentation checker passed.
 
-Record actual outputs and lessons here as milestones finish. Move this file to `docs/exec-plans/completed/` after all three milestones meet their acceptance criteria.
+On 2026-11-20, a fresh linked worktree at commit `1581796` started with a clean `git status --porcelain`. Starting at AGENTS.md, the handoff followed the execution plan guide and this plan to the README decision, both image references, the checker regression suite, and the audit checklist. The `git grep` command from milestone 3 returned two pins with the same digest. `bash scripts/check-docs.sh` passed for 28 Markdown files and 28 regression tests without a Compose stack in the handoff worktree.
+
+Contributors updating the Python image can find the decision directly in the README development setup.

@@ -6,7 +6,7 @@ Create a versioned execution plan when work spans multiple sessions, introduces 
 
 Start a Markdown plan in `docs/exec-plans/active/`. When all acceptance checks pass, record the outcome and retrospective, then move the file to `docs/exec-plans/completed/`. Update any links that point to the old path and verify relative links after the move. The two directories are siblings, so links from a plan to other project files can usually stay the same.
 
-The [knowledge base maintenance plan](exec-plans/active/knowledge-base-maintenance.md) is the first example.
+The completed [knowledge base maintenance plan](exec-plans/completed/knowledge-base-maintenance.md) is the first example.
 
 ## What to include
 
