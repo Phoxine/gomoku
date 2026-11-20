@@ -149,8 +149,12 @@
   idInput.addEventListener("keydown", (event) => { if (event.key === "Enter") loadButton.click(); });
   refreshButton.addEventListener("click", () => perform(() => load(game.id)));
   copyButton.addEventListener("click", () => perform(async () => {
-    if (!navigator.clipboard) throw new Error("Copy the game ID from the field above.");
-    await navigator.clipboard.writeText(game.id); message.textContent = "Game ID copied.";
+    try {
+      await navigator.clipboard.writeText(game.id);
+      message.textContent = "Game ID copied.";
+    } catch {
+      message.textContent = "Copy the game ID shown below the board.";
+    }
   }));
   render();
   const saved = remembered();

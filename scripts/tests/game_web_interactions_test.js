@@ -17,7 +17,7 @@ function state(stone = 0) {
   return { id, board, current_player: stone ? 2 : 1, status: "in_progress", winner: null };
 }
 
-function page({ saved = null, responder }) {
+function page({ saved = null, responder, clipboard }) {
   class Element {
     constructor() {
       this.children = [];
@@ -73,13 +73,43 @@ function page({ saved = null, responder }) {
     }
     return responder(url, options);
   }
-  vm.runInNewContext(source, { document, localStorage, fetch, navigator: {}, console });
+  vm.runInNewContext(source, {
+    document, localStorage, fetch, navigator: { clipboard }, console,
+  });
   return { document, elements, values, calls };
 }
 
 function response(body, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => body };
 }
+
+test("Copy ID points to the active game when clipboard writes are denied", async () => {
+  const app = page({
+    responder: () => response(state(), 201),
+    clipboard: { async writeText() { throw new DOMException("Write denied.", "NotAllowedError"); } },
+  });
+  await app.elements.get("new-game").click();
+  const pendingId = "87654321-4321-4321-8321-cba987654321";
+  app.elements.get("game-id").value = pendingId;
+  await app.elements.get("copy-id").click();
+
+  assert.equal(app.elements.get("message").textContent, "Copy the game ID shown below the board.");
+  assert.equal(app.elements.get("current-id").textContent, id);
+  assert.equal(app.elements.get("game-id").value, pendingId);
+});
+
+test("Copy ID writes the current ID and confirms success", async () => {
+  const writes = [];
+  const app = page({
+    responder: () => response(state(), 201),
+    clipboard: { async writeText(value) { writes.push(value); } },
+  });
+  await app.elements.get("new-game").click();
+  await app.elements.get("copy-id").click();
+
+  assert.deepEqual(writes, [id]);
+  assert.equal(app.elements.get("message").textContent, "Game ID copied.");
+});
 
 test("creates a game, stores it, and posts a move with CSRF", async () => {
   const app = page({
