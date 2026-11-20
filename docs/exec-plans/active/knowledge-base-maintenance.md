@@ -31,6 +31,8 @@ Select a durable product or architecture decision from a PR review or task discu
 
 Use the [worktree setup guide](../../../.agents/skills/create-worktree/SKILL.md) to create a separate checkout of the committed documentation changes, using its own Compose project if container checks are needed. Starting at [AGENTS.md](../../../AGENTS.md), a reviewer should be able to find this plan, follow its link to the decision in the owning document, locate the supporting code or tests, and run the documented checker and audit steps using only repository files. Record the commit and the commands and results in this plan.
 
+Use the [Python container image update decision](../../../README.md#python-container-image-updates) for this handoff. From the fresh worktree root, compare the two pins with `git grep -n -F 'python:3.14-slim@' -- docker/Dockerfile scripts/check-docs.sh`. Expect two references with the same digest. Run `bash scripts/check-docs.sh` and expect both the Markdown checks and checker tests to pass. Use the [documentation audit checklist](../../documentation-audit.md) to compare the decision with its implementation and test entry points.
+
 ## Recovery
 
 Run negative checker cases in temporary fixtures. If a PR check fails, keep the plan active, record the failing file and output, correct the smallest affected change, and rerun the same check before pushing again. When resuming work, inspect `git status --short`, compare the branch with `origin/main`, and pick up at the first unchecked milestone. Follow the [delivery workflow](../../../AGENTS.md#git-and-pull-request-workflow) for push validation and volume-preserving cleanup.
@@ -46,6 +48,7 @@ If milestone 1 needs to be rolled back, use `git status --short`, `git diff`, an
 - 2026-11-19. Keep the first checker lightweight and start with the current index structure. The documentation audit handles ownership, usage, and accuracy claims that require human judgment.
 - 2026-11-19. Use Python's standard library and the Git index so the PR job needs no project dependencies and checks the same tracked paths as a local run.
 - 2026-11-19. Keep game architecture checks and game UI workflow experiments outside this documentation plan so the acceptance criteria stay focused on maintaining the knowledge base.
+- 2026-11-20. Record the [Python image update decision](../../../README.md#python-container-image-updates) from the discussion following [PR #61](https://github.com/Phoxine/gomoku/pull/61). It affects future changes to both container entry points and can be verified from a clean checkout.
 
 ## Outcomes and retrospective
 

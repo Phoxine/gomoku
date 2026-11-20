@@ -17,6 +17,6 @@ The [knowledge base maintenance plan](exec-plans/active/knowledge-base-maintenan
 - **Progress, discoveries, and decisions.** Keep a dated progress checklist that distinguishes completed and pending work. Record unexpected behavior with evidence and explain why consequential decisions were made. Update these sections at milestones and before handing off the work.
 - **Outcomes and retrospective.** Record the validation results, remaining gaps, and lessons from the work. If a follow-up leaves technical debt, record it in `docs/exec-plans/tech-debt-tracker.md` with its impact, evidence, and a concrete next step.
 
-A new contributor should be able to resume from the plan and the checkout alone. Put durable product or architecture decisions in their owning documents so they remain discoverable after the plan is archived.
+A new contributor should be able to resume from the plan and the checkout alone. When a conversation or PR review settles a decision that affects future work, record what was decided, why, and any constraints in the owning specification, design, or development guide. Link to the implementation and the checks a future contributor can run. Link to the owning document from the plan when the decision affects a milestone.
 
 See the [Cookbook guide to versioned execution plans](https://developers.openai.com/cookbook/articles/codex_exec_plans).
