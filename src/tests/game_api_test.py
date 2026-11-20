@@ -4,6 +4,69 @@ import subprocess
 import sys
 
 
+def test_move_request_boundary_without_database() -> None:
+    script = """
+import json
+import os
+from unittest.mock import patch
+from uuid import uuid4
+
+os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings'
+import django
+django.setup()
+from django.test import RequestFactory
+
+from app.api import game_views
+from app.api.game_dto import MoveRequest
+from app.domain.game.service.game_service import initialize_board
+from app.domain.game.state import GameState, GameStatus, Move
+
+factory = RequestFactory()
+game_id = uuid4()
+state = GameState(initialize_board(), 1, GameStatus.IN_PROGRESS)
+
+with patch.object(game_views, 'GameApplicationService') as service:
+    for body, error in [
+        (b'{"x": 0, "y":', 'invalid_request'),
+        (b'{"x": 0, "y": "\\xff"}', 'invalid_request'),
+        ('null', 'invalid_request'),
+        ('{"y": 0}', 'invalid_request'),
+        ('{"x": 0, "y": 0, "z": 0}', 'invalid_request'),
+        ('{"x": true, "y": 0}', 'invalid_coordinate'),
+        ('{"x": 0, "y": false}', 'invalid_coordinate'),
+        ('{"x": 0, "y": 1.0}', 'invalid_coordinate'),
+        ('{"x": 0, "y": "1"}', 'invalid_coordinate'),
+        ('{"x": 0, "y": null}', 'invalid_coordinate'),
+    ]:
+        request = factory.post('/', body, content_type='application/json')
+        response = game_views.place_move(request, game_id)
+        assert response.status_code == 400
+        assert json.loads(response.content) == {'error': error}
+        service.assert_not_called()
+
+    request = factory.post('/', 'x=0&y=0', content_type='text/plain')
+    response = game_views.place_move(request, game_id)
+    assert response.status_code == 415
+    service.assert_not_called()
+
+    service.return_value.place_move.return_value = state
+    with patch.object(
+        game_views, 'MoveRequest', side_effect=MoveRequest
+    ) as request_dto:
+        for x, y in [(3, 4), (-1, 15)]:
+            body = json.dumps({'x': x, 'y': y})
+            request = factory.post('/', body, content_type='application/json')
+            response = game_views.place_move(request, game_id)
+            assert response.status_code == 200
+            request_dto.assert_called_once_with(x=x, y=y)
+            service.assert_called_once_with()
+            service.return_value.place_move.assert_called_once_with(game_id, Move(x, y))
+            request_dto.reset_mock()
+            service.reset_mock()
+"""
+    subprocess.run([sys.executable, "-c", script], check=True)
+
+
 def test_game_api_with_postgres() -> None:
     # Use a separate process so Django settings do not affect domain unit tests.
     script = """
