@@ -26,7 +26,7 @@ Run `bash scripts/check-docs.sh` after staging documentation changes. Use the fu
 
 If the hook reports `Skipping final validation`, address the stated cause. If the tracked `compose.yaml` is accidentally missing, confirm the deletion with `git status --short` and restore the file from the intended commit. If the root `.env` is missing or has no project name, run `bash scripts/init-worktree-env.sh` for a fresh worktree. For a previously initialized worktree, recover its original project name and local credentials before retrying so its database volume remains attached. Stop if the original settings cannot be recovered. Once the configuration is valid, start the intended stack as described above, confirm `app` is running, and rerun the hook.
 
-After pushing, use `bash scripts/stop-local-stack.sh` to stop the containers and keep the worktree's database volume.
+After pushing, use `bash scripts/stop-local-stack.sh` for a path-bound Compose project. For a legacy or directory-default project rejected by the helper, verify that the project belongs to this worktree before running `bash scripts/compose.sh down` from the same checkout. Both paths retain the database volume. See the [post-push cleanup procedure](../../../.agents/skills/create-pr/SKILL.md#4-push-the-branch).
 
 ## Progress and decisions
 
