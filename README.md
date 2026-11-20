@@ -17,6 +17,12 @@ bash scripts/compose.sh up --build -d
 
 Each worktree needs its own initialization, Compose project, and database volume. The initializer creates local environment files and a project name for the worktree; do not share or symlink those files between worktrees. Use `bash scripts/compose.sh` to run Compose commands for the current worktree. The database is accessible to the app on the private Compose network, without a host-published port. `bash scripts/compose.sh down` removes containers and the network while retaining the database volume.
 
+### Python container image updates
+
+The [app Dockerfile](docker/Dockerfile) and the [local documentation checker](scripts/check-docs.sh) each pin the `python:3.14-slim` image by digest. Keep the pins explicit so each entry point can run independently and its image version is visible in the file that uses it.
+
+Update both pins in the same PR for routine image refreshes, including security updates. If an update applies to only one container, explain the reason in the PR. Rebuild the app and run the [worktree validation steps](.agents/skills/create-pr/SKILL.md#3-validate-before-pushing). Run `bash scripts/check-docs.sh` from the repository root to check Markdown and run the checker regression tests with the tooling image.
+
 ## Django management commands
 
 After initializing and starting the isolated worktree environment as described in [Development setup](#development-setup), run:
