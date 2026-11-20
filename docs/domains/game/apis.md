@@ -12,7 +12,7 @@ Responses representing games contain the following fields. Board cells are index
 | `status` | string | `in_progress`, `won`, or `draw`. |
 | `winner` | integer or null | Winning player (`1` or `2`) for a won game; otherwise null. |
 
-Browser clients must obtain a CSRF cookie and send its `csrftoken` value in the `X-CSRFToken` header for POST requests. Django's CSRF middleware rejects missing or invalid tokens with `403 Forbidden`; this response uses Django's default error page.
+For POST requests, send the CSRF cookie and its `csrftoken` value in the `X-CSRFToken` header, as the game's browser client does. Form POSTs to create a game can supply the token in the `csrfmiddlewaretoken` field with the cookie. JSON move requests use the header. When the CSRF check fails, Django returns `403 Forbidden` with its default error page. See [Django's CSRF guidance](https://docs.djangoproject.com/en/6.1/howto/csrf/).
 
 ## Get CSRF cookie
 

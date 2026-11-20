@@ -6,7 +6,7 @@ This plan pilots the [execution plan guide](../../PLANS.md) on the remaining doc
 
 - [x] 2026-11-19. Define the execution plan format and record the remaining documentation work in this plan.
 - [x] 2026-11-19. Add the documentation job and PR reminder and validate the checker locally.
-- [ ] Record and run the first repeatable documentation audit.
+- [x] 2026-11-20. Record and run the first repeatable documentation audit.
 - [ ] Record a durable decision and validate the handoff in a fresh worktree.
 
 ## Milestones and acceptance
@@ -52,5 +52,7 @@ If milestone 1 needs to be rolled back, use `git status --short`, `git diff`, an
 On 2026-11-19, a read-only handoff walkthrough used the guide, this plan, and the repository to locate the first pending milestone, its CI inputs, and the expected pass and failure cases. The walkthrough identified an ambiguity in index coverage, so milestone 1 now names the pages each index is expected to cover.
 
 The first checker passed on all 27 tracked Markdown files. In temporary Git fixtures, a broken relative link, an omitted product index entry, a missing design verification status, and a missing heading anchor each returned status 1 with the affected file and reason.
+
+The [first documentation audit](../../documentation-audit.md#2026-11-20) recorded ownership, navigation, and source evidence for the design and product indexes. It corrected the API's description of CSRF token submission and rechecked the API and schema edits made since the design index's verification baseline. The documentation checker passed.
 
 Record actual outputs and lessons here as milestones finish. Move this file to `docs/exec-plans/completed/` after all three milestones meet their acceptance criteria.
