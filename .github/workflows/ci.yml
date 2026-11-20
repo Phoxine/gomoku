@@ -62,6 +62,9 @@ jobs:
       - name: Run Tests with Coverage
         run: docker compose exec -T app uv run pytest --cov=app --cov-report=xml tests
 
+      - name: Run Game Web Interaction Tests
+        run: node --test scripts/tests/game_web_interactions_test.js
+
   docker-security:
     name: Docker Vulnerability Scan
     runs-on: ubuntu-latest
