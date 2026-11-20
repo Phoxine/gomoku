@@ -8,6 +8,8 @@ Enforce the [documented import boundaries](../../../ARCHITECTURE.md#architectura
 
 All three branches start from the same main branch and can merge independently. Run each command from the worktree for its branch.
 
+In a fresh worktree, run `bash scripts/init-worktree-env.sh` to create the local Compose settings, then `bash scripts/compose.sh up --build -d` to start the app and database.
+
 1. `infra/harness-import-boundaries` adds an import check and this plan. Run `bash scripts/compose.sh exec -T app uv run pytest -q tests/architecture_boundaries_test.py`. Legal imports pass. Disallowed imports report the file, line, boundary, and supported entry point. The existing PR pytest job runs this check.
 2. `infra/harness-move-dto` adds move adapter tests. Run `bash scripts/compose.sh exec -T app uv run pytest -q tests/game_api_test.py`. Malformed or mistyped requests never construct the application service. Integer coordinates reach it as a domain move. The integration suite verifies rule enforcement and persistence.
 3. `fix/game-clipboard-fallback` adds browser guidance when clipboard access is denied, its regression, and a CI step for the Node suite. Run `node --test scripts/tests/game_web_interactions_test.js` before and after the fix.
