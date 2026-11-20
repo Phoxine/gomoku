@@ -21,7 +21,11 @@ Rerun the original workflow run to reproduce a failed report at the same commit.
 
 Run commands from this plan's dedicated worktree. Record `git status --short` and `git rev-parse HEAD` before starting. When the work needs Django and PostgreSQL, run `bash scripts/init-worktree-env.sh` and `bash scripts/compose.sh up --build -d`. Confirm `app` is listed by `bash scripts/compose.sh ps --status running --services`. If startup is interrupted, inspect `bash scripts/compose.sh ps -a` and follow the [Compose troubleshooting guide](../../../.agents/skills/create-worktree/references/compose-troubleshooting.md) before retrying in the same worktree.
 
-Run `bash scripts/check-docs.sh` after staging documentation changes. Use the full [pre-push validation](../../../.agents/skills/create-pr/SKILL.md#3-validate-before-pushing). Confirm Ruff formatting, Ruff lint, and pytest completed. If the hook reports `Skipping final validation`, restore the running app and retry. After pushing, use `bash scripts/stop-local-stack.sh` to stop the containers and keep the worktree's database volume.
+Run `bash scripts/check-docs.sh` after staging documentation changes. Use the full [pre-push validation](../../../.agents/skills/create-pr/SKILL.md#3-validate-before-pushing). Confirm Ruff formatting, Ruff lint, and pytest completed.
+
+If the hook reports `Skipping final validation`, address the stated cause. If the tracked `compose.yaml` is accidentally missing, confirm the deletion with `git status --short` and restore the file from the intended commit. If the root `.env` is missing or has no project name, run `bash scripts/init-worktree-env.sh` for a fresh worktree. For a previously initialized worktree, recover its original project name and local credentials before retrying so its database volume remains attached. Stop if the original settings cannot be recovered. Once the configuration is valid, start the intended stack as described above, confirm `app` is running, and rerun the hook.
+
+After pushing, use `bash scripts/stop-local-stack.sh` to stop the containers and keep the worktree's database volume.
 
 ## Progress and decisions
 
