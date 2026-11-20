@@ -20,3 +20,11 @@ The completed [knowledge base maintenance plan](exec-plans/completed/knowledge-b
 A new contributor should be able to resume from the plan and the checkout alone. When a conversation or PR review settles a decision that affects future work, record what was decided, why, and any constraints in the owning specification, design, or development guide. Link to the implementation and the checks a future contributor can run. Link to the owning document from the plan when the decision affects a milestone.
 
 See the [Cookbook guide to versioned execution plans](https://developers.openai.com/cookbook/articles/codex_exec_plans).
+
+## Pull request scope
+
+When an execution plan contains changes that can be independently reviewed, validated, and merged, deliver them in separate pull requests. Each PR should have one coherent purpose and include the tests and documentation needed to verify its change.
+
+Record the intended PRs in the plan. For each PR, list the milestones or deliverables it covers, its acceptance checks, and any dependencies that affect merge order. Update the plan if the split changes during implementation.
+
+Keep related changes in one PR when they need to land together for correctness or compatibility. Record the reason in the plan.
