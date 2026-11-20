@@ -1,4 +1,4 @@
-# Harness Batch Three
+# Architecture Validation and Development Workflow
 
 ## Goal and scope
 
@@ -25,8 +25,11 @@ Check `git status --short` and `bash scripts/compose.sh ps` before resuming. Sta
 - [x] Add architecture checks and cover the move boundary. All 11 focused Python cases passed.
 - [x] Reproduce, fix, and verify the clipboard issue. The new JavaScript case failed on the original code. All 9 cases passed after the fix and run in the PR test job. Chrome confirmed the manual-copy message with clipboard writes denied and confirmed the move survived a reload by ID.
 - [x] Review found that the editable load field can contain a different game's ID. The fallback now points to the active ID displayed below the board, and the regression case verifies that pending input is preserved.
-- [ ] Record review, Stop hook, browser, and PR CI outcomes.
+- [x] Re-review passed. The Stop hook passed Ruff format and lint and all 229 Python tests. The Markdown checker and its 28 regression tests passed.
+- [x] The GitHub Actions jobs passed on the implementation commit, including the Python coverage run and the new JavaScript step. [PR #63](https://github.com/Phoxine/gomoku/pull/63) · [CI run](https://github.com/Phoxine/gomoku/actions/runs/44665011456)
 
 ## Outcomes and retrospective
 
-Pending implementation and validation.
+The direct-import tests enforce the documented boundaries without importing Django models. The request tests distinguish the adapter's validation from rule enforcement. Running the Node suite in CI covers browser interaction logic, and the Chrome check covers the real clipboard failure and game API together.
+
+The clipboard regression failed locally with the same Node command used in CI, then passed after the fix. The implementation run had no failed GitHub Actions job to rerun.
