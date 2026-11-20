@@ -2,7 +2,7 @@
 
 ## Goal and scope
 
-Decide whether a quality scorecard would add information beyond the existing documentation audit and whether a generated database reference would reduce the cost of verifying the game schema. Evaluate adoption separately. Record the evidence and rationale even when an option is declined. The current delivery adds this plan. The two evaluations start after the plan is reviewed.
+Decide whether a quality scorecard would add information beyond the existing documentation audit and whether a generated database reference would reduce the cost of verifying the game schema. Evaluate adoption separately and record the evidence and rationale for each decision.
 
 Start with the [documentation index](../../index.md), [documentation audit](../../documentation-audit.md), [architecture guide](../../../ARCHITECTURE.md), and [Batch Three outcomes](../completed/architecture-validation-and-development-workflow.md).
 
@@ -30,7 +30,7 @@ bash scripts/compose.sh exec -T db psql -X -P pager=off -U postgres -d gomoku -c
 - **Quality evaluation PR.** Record the evidence, decision, and reviewer reproduction. If adopted, include the scorecard and its maintenance instructions. Run the Markdown checker.
 - **Schema evaluation PR.** Record the decision, metadata comparison, repeatability result, and scratch mismatch result. If adopted, include the generated reference, regeneration instructions, and coverage for any executable tooling. If adding CI tooling, run its version-controlled passing and rejected cases in the relevant CI job.
 
-The evaluation PRs can be prepared and merged independently after the plan PR. After both decisions are recorded, archive this plan with links to their evidence and record any follow-up in the owning document.
+The evaluation PRs can merge independently. The archive and rename follow both evidence records. The filename matches the plan's title.
 
 ## Recovery and validation
 
@@ -41,10 +41,12 @@ Before every push, follow the [PR validation procedure](../../../.agents/skills/
 ## Progress and decisions
 
 - [x] 2026-11-20. Defined independent adoption criteria and delivery scope from the post-Batch Three baseline `c6b9df0`.
-- [ ] Reproduce the quality assessment and record the adoption decision.
-- [ ] Verify schema coverage and reproducibility and record the adoption decision.
-- [ ] Link evaluation results and archive the plan.
+- [x] 2026-11-20. Reproduced the four quality statuses and recorded the decision in the documentation audit.
+- [x] 2026-11-20. Verified the schema probe against the initial migration, exercised both comparison outcomes, and recorded the decision in the schema reference.
+- [x] 2026-11-20. Linked the evidence and archived the plan as `quality-tracking-and-schema-documentation.md`.
 
 ## Outcomes and retrospective
 
-Pending evaluation. Record the observed results, the cost of maintaining each option, and any follow-up after both decisions are available.
+The quality sample covered player flow, rules, API, and persistence at `d1edcb7`. Nine Node tests and 49 focused Python cases passed. Independent review reproduced all four `Verified` statuses. The sample refreshed existing audit evidence without identifying a gap for a separate scorecard. The [documentation audit](../../documentation-audit.md) records the sample and when to revisit the decision.
+
+The PostgreSQL probe confirmed seven columns, the primary key index, and seven check constraints after applying the existing migration to an isolated database. Comparing two probes produced no difference. Changing the status column width in a scratch copy produced the expected diagnostic. Keep the probe on demand for the single table. The [schema reference](../../domains/game/db-schemas.md) records the results, the regeneration command for a scratch probe, and when to revisit a checked-in snapshot.
