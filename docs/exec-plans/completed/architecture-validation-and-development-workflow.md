@@ -24,7 +24,9 @@ If setup stops after the database starts, check `git status --short`, then run `
 
 To undo partial startup or clean up after a push, run `bash scripts/stop-local-stack.sh` from that worktree. It removes containers and the project network for the worktree's path-bound project and preserves its database volume and local settings. For a legacy project rejected by the helper, verify its ownership before running `bash scripts/compose.sh down` from that worktree.
 
-Run the full Stop hook in each isolated worktree before pushing and the Markdown checker where documentation changes. If CI fails, inspect the failed step, reproduce it with the same command, fix it, and repeat validation before pushing. Record results and review feedback in each PR.
+If the initializer reports an existing lock, use `pgrep -fl '[i]nit-worktree-env.sh'` to check for running initializers. Wait for any active initializer to finish. Once no initializer is running and no other session is starting one for this worktree, use `rmdir .worktree-env.lock` from the affected worktree to remove the empty stale lock, then retry initialization. If the directory is nonempty, inspect it before proceeding and leave existing environment files and volumes in place.
+
+Before pushing, run `bash .codex/hooks/stop-validation.sh` in each isolated worktree and confirm Ruff formatting, Ruff lint, and pytest completed successfully. If the output says `Skipping final validation`, restart the stack, confirm `app` is running, and rerun the hook before pushing. Run `bash scripts/check-docs.sh` where documentation changes. If CI fails, inspect the failed step, reproduce it with the same command, fix it, and repeat validation before pushing. Record results and review feedback in each PR.
 
 ## Progress and decisions
 
