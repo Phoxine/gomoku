@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import posixpath
 import re
@@ -350,8 +351,7 @@ def heading_anchors(lines: list[MarkdownLine]) -> set[str]:
     return slugs | custom_anchors
 
 
-def tracked_files(root: Path) -> set[PurePosixPath]:
-    listing = subprocess.check_output(["git", "ls-files", "--stage", "-z"], cwd=root)
+def tracked_files(listing: bytes) -> set[PurePosixPath]:
     files = set()
     for entry in listing.split(b"\0"):
         if entry:
@@ -408,8 +408,20 @@ def check_indexes(documents: dict[PurePosixPath, list[MarkdownLine]]) -> list[st
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--index-stdin",
+        action="store_true",
+        help="read git ls-files --stage -z from stdin",
+    )
+    args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    files = tracked_files(root)
+    listing = (
+        sys.stdin.buffer.read()
+        if args.index_stdin
+        else subprocess.check_output(["git", "ls-files", "--stage", "-z"], cwd=root)
+    )
+    files = tracked_files(listing)
     available = set()
     for path in files:
         candidate = root / path

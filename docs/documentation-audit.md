@@ -5,11 +5,13 @@ Use this checklist when reviewing the knowledge base. Start from [AGENTS.md](../
 ## Checklist
 
 - [ ] **Record the baseline.** Note the date, the commit reviewed (`git rev-parse HEAD`), and any in-scope working-tree changes. Use `git ls-files '*.md'` to inventory versioned Markdown.
-- [ ] **Run the documentation checker.** From the repository root, run `python3 scripts/check_docs.py`. Stage new Markdown paths that should be included. Record the result. The checker validates repository-relative links, index coverage, and design verification status.
+- [ ] **Run the documentation checker.** From the repository root, run `bash scripts/check-docs.sh`. Stage new Markdown paths that should be included. Record the result. The command validates repository-relative links, index coverage, and design verification status, then runs the checker regression tests. It exits with a nonzero status if either fails.
 - [ ] **Find the owning page.** For each area, identify where the authoritative description belongs and follow links from the entry points. Check repeated descriptions for disagreement and link to the owning page when a summary suffices.
 - [ ] **Check for stale or unused pages.** Look for superseded instructions, outdated verification evidence, and pages without a path from the relevant index. Search for references by filename and confirm the page's purpose before proposing removal or archiving.
 - [ ] **Compare claims with implementation.** Follow the design index's evidence links. For each design and product page, compare the documented behavior with the relevant source, migrations, or tests. Record what you actually checked and which checks you ran. If the evidence is incomplete, record what remains to verify and update the design status as appropriate.
 - [ ] **Record and close findings.** Add a dated record below with the scope, checker result, and one row per area. Record the owning page, evidence, result, and follow-up. Resolve findings in the audit change or link to a versioned follow-up with a concrete next step. Rerun affected checks after corrections.
+
+The command requires Git and Docker. It works from the main checkout and linked worktrees without starting PostgreSQL or installing Python dependencies on the host. Git supplies the tracked path listing, and the container reads current working-tree content through a read-only mount.
 
 Reuse this table for each run.
 

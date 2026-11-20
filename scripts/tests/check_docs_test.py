@@ -11,7 +11,22 @@ from scripts.check_docs import (
     heading_anchors,
     markdown_lines,
     relative_target,
+    tracked_files,
 )
+
+
+class TrackedFilesTest(unittest.TestCase):
+    def test_reads_regular_files_from_nul_delimited_index(self) -> None:
+        listing = (
+            b"100644 abc 0\tdocs/a space.md\0"
+            b"100755 def 0\tscripts/a\ttab.sh\0"
+            b"120000 abc 0\tsymlink.md\0"
+            b"160000 def 0\tsubmodule\0"
+        )
+        self.assertEqual(
+            tracked_files(listing),
+            {PurePosixPath("docs/a space.md"), PurePosixPath("scripts/a\ttab.sh")},
+        )
 
 
 class MarkdownLinksTest(unittest.TestCase):
