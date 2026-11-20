@@ -24,9 +24,14 @@ Run the full Stop hook in each isolated worktree before pushing and the Markdown
 
 - [x] 2026-11-20. Recovered the implementation from [PR #63](https://github.com/Phoxine/gomoku/pull/63), which closed without merging. Split the changes under the [plan guide](../../PLANS.md#pull-request-scope).
 - [x] Original validation. The clipboard regression failed before the fix and passed afterward. Chrome confirmed the denied-write fallback, preserved load input, and persisted move. Review prompted the message to reference the active ID below the board.
-- [ ] Validate and submit the independent changes against current main.
-- [ ] Record the replacement PR and CI results, then archive this plan.
+- [x] 2026-11-20. Revalidated and submitted the three independent changes against `f74bc75`. Read-only review caught persisted checkout authentication in the job running the Node tests. Disabled credential persistence for that job and passed re-review.
 
 ## Outcomes
 
-The [original CI run](https://github.com/Phoxine/gomoku/actions/runs/44665011456) passed. The workflow exercised a failing regression locally. Every GitHub Actions job passed on that run.
+| Change | Isolated Stop hook | GitHub Actions |
+| --- | --- | --- |
+| [Import boundaries, PR #65](https://github.com/Phoxine/gomoku/pull/65) | Ruff format and lint, 228 Python tests | [Passed](https://github.com/Phoxine/gomoku/actions/runs/44667438171) |
+| [Move DTO, PR #66](https://github.com/Phoxine/gomoku/pull/66) | Ruff format and lint, 220 Python tests | [Passed](https://github.com/Phoxine/gomoku/actions/runs/44667437513) |
+| [Clipboard fallback, PR #67](https://github.com/Phoxine/gomoku/pull/67) | Ruff format and lint, 219 Python tests | [Passed](https://github.com/Phoxine/gomoku/actions/runs/44667437832) |
+
+The same Node command used in CI failed once on the original game script, which reported a connection error when clipboard access was denied. All nine cases passed with the fixed script. Headless Chrome confirmed the new message, preserved the pending load input, and showed the persisted move after reloading. The replacement GitHub Actions runs passed on their first attempt, so the failure-and-retest exercise took place locally.
