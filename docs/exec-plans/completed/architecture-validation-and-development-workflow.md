@@ -20,7 +20,11 @@ Run `APP_PORT=8765 bash scripts/start-local-server.sh`. In Chromium, open `http:
 
 ## Delivery and recovery
 
-Run the full Stop hook in each isolated worktree before pushing and the Markdown checker where documentation changes. Check `git status --short` and `bash scripts/compose.sh ps` before resuming. If CI fails, inspect the failed step, reproduce it with the same command, fix it, and repeat validation before pushing. Record results and review feedback in each PR. After pushing, run `bash scripts/stop-local-stack.sh` to preserve the database volume.
+If setup stops after the database starts, check `git status --short`, then run `bash scripts/compose.sh ps -a` to see which services were created and their health. Use `bash scripts/compose.sh logs --tail 50 app db` to diagnose the failing service. If initialization was interrupted, rerun `bash scripts/init-worktree-env.sh` in the same worktree to reuse its existing settings. Then retry `bash scripts/compose.sh up --build -d` in that worktree. Confirm that `app` appears in `bash scripts/compose.sh ps --status running --services` before testing.
+
+To undo partial startup or clean up after a push, run `bash scripts/stop-local-stack.sh` from that worktree. It removes containers and the project network for the worktree's path-bound project and preserves its database volume and local settings. For a legacy project rejected by the helper, verify its ownership before running `bash scripts/compose.sh down` from that worktree.
+
+Run the full Stop hook in each isolated worktree before pushing and the Markdown checker where documentation changes. If CI fails, inspect the failed step, reproduce it with the same command, fix it, and repeat validation before pushing. Record results and review feedback in each PR.
 
 ## Progress and decisions
 
