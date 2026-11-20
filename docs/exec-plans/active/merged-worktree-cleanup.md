@@ -2,7 +2,7 @@
 
 ## Goal and scope
 
-Plan a safe end-of-task cleanup procedure. The [PR skill](../../../.agents/skills/create-pr/SKILL.md) already stops Compose containers after pushing and retains the database volume. The remaining task is deciding whether a merged task's worktree and local or remote branches are safe to remove. The merged branch can have a different commit ID after a squash, and someone can push again after the merge. [Worktree isolation](../../../.agents/skills/create-worktree/references/multi-session-worktrees.md) · [Authorization boundaries](../../../AGENTS.md#quality-gates--workflow-boundaries)
+Plan a safe end-of-task cleanup procedure. The [PR skill](../../../.agents/skills/create-pr/SKILL.md) already stops Compose containers after pushing and retains the database volume. The remaining task is deciding whether a merged task's worktree and local or remote branches are safe to remove. The merged branch can have a different commit ID after a squash, and someone can push again after the merge. [Worktree isolation](../../../.agents/skills/create-worktree/references/multi-session-worktrees.md) · [Authorization boundaries](../../../AGENTS.md)
 
 ## Milestones
 
