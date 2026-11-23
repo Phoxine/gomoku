@@ -1,4 +1,4 @@
-"""Check the report validation and summary used in CI."""
+"""Check report validation, summaries, and the coverage minimum used in CI."""
 
 import subprocess
 import sys
@@ -34,7 +34,8 @@ class CoverageReportTest(unittest.TestCase):
                     )
                     self.assertEqual(result.returncode, 1, result.stderr)
                     self.assertIn(
-                        f"Coverage report is missing or empty at {report}", result.stderr
+                        f"Coverage report is missing or empty at {report}",
+                        result.stderr,
                     )
 
 
@@ -57,6 +58,37 @@ class CoverageSummaryTest(unittest.TestCase):
                 "### Python line coverage\n\n"
                 "**98.07%** (254 of 259 executable lines covered)\n",
             )
+
+    def test_enforces_minimum_using_exact_line_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "coverage.xml"
+            for covered, exit_status, label, diagnostic in (
+                (90_000, 0, "pass", ""),
+                (89_999, 1, "fail", "Python line coverage is below the 90% minimum.\n"),
+            ):
+                with self.subTest(covered=covered):
+                    report.write_text(
+                        f'<coverage lines-covered="{covered}" lines-valid="100000" />',
+                        encoding="utf-8",
+                    )
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            str(SUMMARIZER),
+                            str(report),
+                            "--fail-under",
+                            "90",
+                        ],
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertEqual(result.returncode, exit_status, result.stderr)
+                    self.assertIn("### Python line coverage", result.stdout)
+                    self.assertIn(
+                        f"Required minimum: **90%** ({label}).",
+                        result.stdout,
+                    )
+                    self.assertEqual(result.stderr, diagnostic)
 
     def test_rejects_an_invalid_report_without_printing_a_summary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
