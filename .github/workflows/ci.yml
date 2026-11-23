@@ -61,7 +61,7 @@ jobs:
       - name: Run Ruff Format Check
         run: docker compose exec -T app uv run ruff format --check app tests
 
-      - name: Test coverage report check
+      - name: Test coverage report tooling
         run: python3 -m unittest discover -s scripts/tests -p coverage_report_test.py
 
       - name: Run Tests with Coverage
@@ -76,6 +76,12 @@ jobs:
         if: ${{ !cancelled() && steps.python-tests.outcome == 'success' }}
         continue-on-error: true
         run: bash scripts/check-coverage-report.sh src/coverage.xml
+
+      - name: Summarize Python coverage
+        if: ${{ !cancelled() && steps.coverage-report.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        run: python3 scripts/summarize_coverage.py src/coverage.xml | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Python coverage report
         if: ${{ !cancelled() && steps.coverage-report.outcome == 'success' }}

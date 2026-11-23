@@ -35,7 +35,7 @@ After pushing, use `bash scripts/stop-local-stack.sh` for a path-bound Compose p
 - [x] 2026-11-23. Enabled subprocess tracking and pointed pytest-cov at the root `pyproject.toml` from the app container's working directory. The same 229 tests passed locally and the corrected report measured 254 of 259 lines (98.07%).
 - [ ] Record whether coverage enforcement is justified.
 
-The publishing workflow checks that the XML exists and is nonempty after a successful pytest step. It uploads `python-coverage` with a 14-day retention period. Reviewers can find it in the workflow run's **Artifacts** section. Report-check and upload errors are visible in their step logs and leave the test result intact.
+The publishing workflow checks that the XML exists and is nonempty after a successful pytest step. The workflow run's **Summary** shows the total percentage and executable line counts from the XML. The `python-coverage` artifact contains the XML for per-file details and expires after 14 days. Reporting errors are visible in their step logs and leave the test result intact.
 
 ## Outcomes and retrospective
 
