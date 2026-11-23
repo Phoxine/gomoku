@@ -32,8 +32,8 @@ If the coverage run does not record the model assertion, check that subprocess t
 ## Progress and decisions
 
 - [x] 2026-11-23. Identified five uncovered lines after enabling subprocess tracking.
-- [ ] Confirm the baseline on the merged configuration.
-- [ ] Add and verify the game state and model tests.
+- [x] 2026-11-23. Reproduced the five missing lines on `a69705f` with the merged subprocess configuration. All 229 tests passed and the report recorded 254 of 259 executable lines (98.07%).
+- [x] 2026-11-23. Added six state transition cases across the four guards and asserted the saved model's string representation in the existing PostgreSQL integration test. All 25 targeted tests and 235 full-suite tests passed. The XML recorded 259 of 259 executable lines (100%), with a hit on each of the five target lines.
 - [ ] Record CI results and archive the plan.
 
 ## Outcomes and retrospective
