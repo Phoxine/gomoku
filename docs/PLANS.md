@@ -23,6 +23,8 @@ See the [Cookbook guide to versioned execution plans](https://developers.openai.
 
 ## Pull request scope
 
+When the task is to write or revise an execution plan as a standalone deliverable, use a `plan/<task-slug>` branch. Follow the [worktree setup and branch naming rules](../.agents/skills/create-worktree/SKILL.md). When a task includes implementing the planned work, choose the branch prefix for the implementation.
+
 When an execution plan contains changes that can be independently reviewed, validated, and merged, deliver them in separate pull requests. Each PR should have one coherent purpose and include the tests and documentation needed to verify its change.
 
 Record the intended PRs in the plan. For each PR, list the milestones or deliverables it covers, its acceptance checks, and any dependencies that affect merge order. Update the plan if the split changes during implementation.
