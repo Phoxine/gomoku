@@ -34,8 +34,8 @@ If the coverage run does not record the model assertion, check that subprocess t
 - [x] 2026-11-23. Identified five uncovered lines after enabling subprocess tracking.
 - [x] 2026-11-23. Reproduced the five missing lines on `a69705f` with the merged subprocess configuration. All 229 tests passed and the report recorded 254 of 259 executable lines (98.07%).
 - [x] 2026-11-23. Added six state transition cases across the four guards and asserted the saved model's string representation in the existing PostgreSQL integration test. All 25 targeted tests and 235 full-suite tests passed. The XML recorded 259 of 259 executable lines (100%), with a hit on each of the five target lines.
-- [ ] Record CI results and archive the plan.
+- [x] 2026-11-23. [PR #78](https://github.com/Phoxine/gomoku/pull/78) passed Code Quality & Testing at `6bd9872`. CI ran 235 passing tests, reported 259 of 259 executable lines covered (100%), passed the 90% floor, and uploaded the coverage XML. [GitHub Actions run](https://github.com/Phoxine/gomoku/actions/runs/45124539073)
 
 ## Outcomes and retrospective
 
-Implementation and verification are pending.
+The targeted assertions covered all five gaps. The full suite increased from 229 to 235 tests, and application line coverage increased from 98.07% to 100%. The model assertion reused the isolated Django process and test database. Subprocess tracing included its execution in the same report as the domain tests.
