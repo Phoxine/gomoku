@@ -65,6 +65,7 @@ For a push-only request, report the push and stop after cleanup. Continue to ste
   - [ ] `fix`: Bug fix
   - [ ] `infra`: Development tooling, CI/CD, or infrastructure
   - [ ] `docs`: Documentation updates
+  - [ ] `plan`: Standalone execution plan creation or revision
   - [ ] `refactor`: Code refactoring without functional changes
 
   ## Related Issues
@@ -73,14 +74,15 @@ For a push-only request, report the push and stop after cleanup. Continue to ste
 
   ## Validation
   <!-- List the checks, linters, and test suites that passed in the isolated worktree environment. -->
-  - [ ] Passed `.codex/hooks/stop-validation.sh` (formatting, lint, and test suite)
+  - [ ] Passed `.codex/hooks/stop-validation.sh` with formatting, lint, and tests completed (confirm no `Skipping final validation` message; a successful exit alone is insufficient)
   - [ ] Verified diff against `origin/main` (no `.env`, secrets, or unrelated changes included)
+  - [ ] Checked documentation against the implementation for changes to API behavior, database schemas, or game rules (if applicable)
 
   ## Screenshots / Notes (Optional)
   <!-- Add screenshots, API response examples, or deployment notes if helpful for reviewers. -->
   ````
 
-- Format the PR title as `<type>(<scope>): <description>`, for example, `feature(auth): add user login`. Use `feature`, `fix`, `infra`, `docs`, or `refactor` as the type, and keep the description concise and focused on the change.
+- Format the PR title as `<type>(<scope>): <description>`, for example, `feature(auth): add user login`. Use `feature`, `fix`, `infra`, `docs`, `plan`, or `refactor` as the type, and keep the description concise and focused on the change. Use `plan` as the change type for standalone execution plan creation or revision. When the PR also implements the plan, use the type for the implementation.
 - Determine the target base branch from the user's request or repository workflow, defaulting to `main`. Check for an open PR whose head matches the repository and branch just pushed and whose base matches the selected target. Reuse a matching PR and report its URL. If none matches, create a PR with the selected base.
 - Use the selected base in both GitHub CLI commands. For example, for a same-repository PR targeting `main`:
 

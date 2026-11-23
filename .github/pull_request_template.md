@@ -8,6 +8,7 @@
 - [ ] `fix`: Bug fix
 - [ ] `infra`: Development tooling, CI/CD, or infrastructure
 - [ ] `docs`: Documentation updates
+- [ ] `plan`: Standalone execution plan creation or revision
 - [ ] `refactor`: Code refactoring without functional changes
 
 ## Related Issues
