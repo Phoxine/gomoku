@@ -77,12 +77,6 @@ jobs:
         continue-on-error: true
         run: bash scripts/check-coverage-report.sh src/coverage.xml
 
-      - name: Summarize Python coverage
-        if: ${{ !cancelled() && steps.coverage-report.outcome == 'success' }}
-        continue-on-error: true
-        shell: bash
-        run: python3 scripts/summarize_coverage.py src/coverage.xml | tee -a "$GITHUB_STEP_SUMMARY"
-
       - name: Upload Python coverage report
         if: ${{ !cancelled() && steps.coverage-report.outcome == 'success' }}
         continue-on-error: true
@@ -92,6 +86,11 @@ jobs:
           path: src/coverage.xml
           if-no-files-found: error
           retention-days: 14
+
+      - name: Enforce Python line coverage minimum
+        if: ${{ !cancelled() && steps.python-tests.outcome == 'success' }}
+        shell: bash
+        run: python3 scripts/summarize_coverage.py src/coverage.xml --fail-under 90 | tee -a "$GITHUB_STEP_SUMMARY"
 
   docker-security:
     name: Docker Vulnerability Scan
