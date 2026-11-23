@@ -25,7 +25,7 @@ Update both pins in the same PR for routine image refreshes, including security 
 
 ### Python coverage in pull requests
 
-Open the GitHub Actions workflow run from the pull request's **Checks** tab and download `python-coverage` from **Artifacts**. The archive contains `coverage.xml` for the commit tested by that run and is available for 14 days. Use the file and line entries to see which statements in `src/app` the coverage tool recorded as unexecuted. Some integration tests run application code in subprocesses, so the report can understate their coverage.
+Open the GitHub Actions workflow run from the pull request's **Checks** tab and download `python-coverage` from **Artifacts**. The archive contains `coverage.xml` for the commit tested by that run and is available for 14 days. It includes lines in `src/app` recorded during pytest and its Python subprocesses, including Django integration tests. Use the file and line entries to identify statements the test run did not record as executed.
 
 ## Django management commands
 
