@@ -22,6 +22,9 @@ package = false
 testpaths = ["src/tests"]
 pythonpath = ["src"]
 
+[tool.coverage.run]
+patch = ["subprocess"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py314"
