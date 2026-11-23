@@ -30,9 +30,11 @@ After pushing, use `bash scripts/stop-local-stack.sh` for a path-bound Compose p
 ## Progress and decisions
 
 - [x] 2026-11-20. Defined scope and acceptance from baseline `eff8579`.
-- [ ] Record and inspect the local coverage baseline.
+- [x] 2026-11-23. Ran the planned command on `f97c29e`. All 229 tests passed. The `app` scope reported 161 of 259 lines covered (62.16%) with no project-configured omissions or exclusions. The nonempty container report at `/workspace/src/coverage.xml` was visible at `src/coverage.xml` on the host. Some integration tests exercise application code in subprocesses, so this baseline can understate coverage of those paths.
 - [ ] Publish and verify a report from a pull request.
 - [ ] Record whether coverage enforcement is justified.
+
+The publishing workflow checks that the XML exists and is nonempty after a successful pytest step. It uploads `python-coverage` with a 14-day retention period. Reviewers can find it in the workflow run's **Artifacts** section. Report-check and upload errors are visible in their step logs and leave the test result intact.
 
 ## Outcomes and retrospective
 

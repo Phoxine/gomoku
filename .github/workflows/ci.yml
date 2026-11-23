@@ -61,11 +61,31 @@ jobs:
       - name: Run Ruff Format Check
         run: docker compose exec -T app uv run ruff format --check app tests
 
+      - name: Test coverage report check
+        run: python3 -m unittest discover -s scripts/tests -p coverage_report_test.py
+
       - name: Run Tests with Coverage
+        id: python-tests
         run: docker compose exec -T app uv run pytest --cov=app --cov-report=xml tests
 
       - name: Run Game Web Interaction Tests
         run: node --test scripts/tests/game_web_interactions_test.js
+
+      - name: Check Python coverage report
+        id: coverage-report
+        if: ${{ !cancelled() && steps.python-tests.outcome == 'success' }}
+        continue-on-error: true
+        run: bash scripts/check-coverage-report.sh src/coverage.xml
+
+      - name: Upload Python coverage report
+        if: ${{ !cancelled() && steps.coverage-report.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-coverage
+          path: src/coverage.xml
+          if-no-files-found: error
+          retention-days: 14
 
   docker-security:
     name: Docker Vulnerability Scan
