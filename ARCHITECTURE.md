@@ -29,7 +29,7 @@ Browser → Django API → GameApplicationService → GameRepository → Django 
 
 - **Concurrent moves.** The application service holds a transaction while the repository locks the game row, the rules service computes the next state, and the repository saves it. The lock serializes moves for the same game.
 - **HTTP security.** Django enforces CSRF checks on state-changing requests. Access to a game is currently based on knowing its ID and being able to reach the server. See the [security rules](.codex/rules/security.md) for input, credential, logging, and SQL requirements.
-- **Development isolation.** Each worktree uses a separate Docker Compose project for Django and PostgreSQL. [Development setup](README.md#development-setup)
+- **Development isolation.** Each worktree uses a separate Docker Compose project for Django and PostgreSQL. [Development setup](docs/development.md#development-setup)
 
 ## Detailed contracts
 

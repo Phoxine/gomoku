@@ -16,7 +16,7 @@ This is a web-based interactive Gomoku game built with Python 3.14 + Django + Dj
 
 ## Environment setup and testing
 
-The development environment is entirely containerized. Do not install project dependencies or run databases on the local host. See the [host prerequisites](docs/codex/prerequisites.md) and [development setup](README.md#development-setup) for build and startup.
+The development environment is entirely containerized. Do not install project dependencies or run databases on the local host. See the [host prerequisites](docs/codex/prerequisites.md) and [development setup](docs/development.md#development-setup) for build and startup.
 
 Each worktree must use its own Docker Compose project and database volume. Use `bash scripts/compose.sh` from that worktree for local Compose commands. See the [worktree skill](.agents/skills/create-worktree/SKILL.md) and [isolation reference](.agents/skills/create-worktree/references/multi-session-worktrees.md).
 
