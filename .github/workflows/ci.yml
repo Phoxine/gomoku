@@ -61,11 +61,36 @@ jobs:
       - name: Run Ruff Format Check
         run: docker compose exec -T app uv run ruff format --check app tests
 
+      - name: Test coverage report tooling
+        run: python3 -m unittest discover -s scripts/tests -p coverage_report_test.py
+
       - name: Run Tests with Coverage
-        run: docker compose exec -T app uv run pytest --cov=app --cov-report=xml tests
+        id: python-tests
+        run: docker compose exec -T app uv run pytest --cov=app --cov-config=/workspace/pyproject.toml --cov-report=xml tests
 
       - name: Run Game Web Interaction Tests
         run: node --test scripts/tests/game_web_interactions_test.js
+
+      - name: Check Python coverage report
+        id: coverage-report
+        if: ${{ !cancelled() && steps.python-tests.outcome == 'success' }}
+        continue-on-error: true
+        run: bash scripts/check-coverage-report.sh src/coverage.xml
+
+      - name: Upload Python coverage report
+        if: ${{ !cancelled() && steps.coverage-report.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-coverage
+          path: src/coverage.xml
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce Python line coverage minimum
+        if: ${{ !cancelled() && steps.python-tests.outcome == 'success' }}
+        shell: bash
+        run: python3 scripts/summarize_coverage.py src/coverage.xml --fail-under 90 | tee -a "$GITHUB_STEP_SUMMARY"
 
   docker-security:
     name: Docker Vulnerability Scan

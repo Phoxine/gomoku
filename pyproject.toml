@@ -12,7 +12,7 @@ dependencies = [
 dev = [
     "pytest==9.2.0",
     "pytest-cov==7.1.0",
-    "ruff==0.17.5",
+    "ruff==0.17.6",
 ]
 
 [tool.uv]
@@ -21,6 +21,9 @@ package = false
 [tool.pytest.ini_options]
 testpaths = ["src/tests"]
 pythonpath = ["src"]
+
+[tool.coverage.run]
+patch = ["subprocess"]
 
 [tool.ruff]
 line-length = 88

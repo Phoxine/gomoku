@@ -23,6 +23,12 @@ The [app Dockerfile](docker/Dockerfile) and the [local documentation checker](sc
 
 Update both pins in the same PR for routine image refreshes, including security updates. If an update applies to only one container, explain the reason in the PR. Rebuild the app and run the [worktree validation steps](.agents/skills/create-pr/SKILL.md#3-validate-before-pushing). Run `bash scripts/check-docs.sh` from the repository root to check Markdown and run the checker regression tests with the tooling image.
 
+### Python coverage in pull requests
+
+Open the GitHub Actions workflow run from the pull request's **Checks** tab and look for **Python line coverage** on the **Summary** page. For file and line details, download `python-coverage` from **Artifacts**. The archive contains `coverage.xml` for the commit tested by that run and is available for 14 days. It includes lines in `src/app` recorded during pytest and its Python subprocesses, including Django integration tests.
+
+CI requires at least 90% overall Python line coverage, calculated from the exact line counts. When pytest passes and coverage falls below 90%, the quality check fails while the summary and XML remain available for diagnosis.
+
 ## Django management commands
 
 After initializing and starting the isolated worktree environment as described in [Development setup](#development-setup), run:
