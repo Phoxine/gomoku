@@ -2,7 +2,7 @@
 
 ## Goal and scope
 
-Provide one procedure for evaluating an existing dependency update or security alert. [Dependabot](../../../.github/dependabot.yml) already proposes GitHub Actions, uv, and Docker updates. [CI](../../../.github/workflows/ci.yml) runs secret, application, and image checks. The [Python image policy](../../../README.md#python-container-image-updates) owns the matched digest pins. The gap is explaining how to decide on a proposed change and record the evidence across these checks.
+Provide one procedure for evaluating an existing dependency update or security alert. [Dependabot](../../../.github/dependabot.yml) already proposes GitHub Actions, uv, and Docker updates. [CI](../../../.github/workflows/ci.yml) runs secret, application, and image checks. The [Python image policy](../../development.md#python-container-image-updates) owns the matched digest pins. The gap is explaining how to decide on a proposed change and record the evidence across these checks.
 
 ## Milestones
 

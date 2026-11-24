@@ -31,7 +31,7 @@ Select a durable product or architecture decision from a PR review or task discu
 
 Use the [worktree setup guide](../../../.agents/skills/create-worktree/SKILL.md) to create a separate checkout of the committed documentation changes, using its own Compose project if container checks are needed. Starting at [AGENTS.md](../../../AGENTS.md), a reviewer should be able to find this plan, follow its link to the decision in the owning document, locate the supporting code or tests, and run the documented checker and audit steps using only repository files. Record the commit and the commands and results in this plan.
 
-Use the [Python container image update decision](../../../README.md#python-container-image-updates) for this handoff. From the fresh worktree root, compare the two pins with `git grep -n -F 'python:3.14-slim@' -- docker/Dockerfile scripts/check-docs.sh`. Expect two references with the same digest. Run `bash scripts/check-docs.sh` and expect both the Markdown checks and checker tests to pass. Use the [documentation audit checklist](../../documentation-audit.md) to compare the decision with its implementation and test entry points.
+Use the [Python container image update decision](../../development.md#python-container-image-updates) for this handoff. From the fresh worktree root, compare the two pins with `git grep -n -F 'python:3.14-slim@' -- docker/Dockerfile scripts/check-docs.sh`. Expect two references with the same digest. Run `bash scripts/check-docs.sh` and expect both the Markdown checks and checker tests to pass. Use the [documentation audit checklist](../../documentation-audit.md) to compare the decision with its implementation and test entry points.
 
 ## Recovery
 
@@ -48,7 +48,7 @@ If milestone 1 needs to be rolled back, use `git status --short`, `git diff`, an
 - 2026-11-19. Keep the first checker lightweight and start with the current index structure. The documentation audit handles ownership, usage, and accuracy claims that require human judgment.
 - 2026-11-19. Use Python's standard library and the Git index so the PR job needs no project dependencies and checks the same tracked paths as a local run.
 - 2026-11-19. Keep game architecture checks and game UI workflow experiments outside this documentation plan so the acceptance criteria stay focused on maintaining the knowledge base.
-- 2026-11-20. Record the [Python image update decision](../../../README.md#python-container-image-updates) from the discussion following [PR #61](https://github.com/Phoxine/gomoku/pull/61). It affects future changes to both container entry points and can be verified from a clean checkout.
+- 2026-11-20. Record the [Python image update decision](../../development.md#python-container-image-updates) from the discussion following [PR #61](https://github.com/Phoxine/gomoku/pull/61). It affects future changes to both container entry points and can be verified from a clean checkout.
 
 ## Outcomes and retrospective
 
@@ -58,6 +58,6 @@ The first checker passed on all 27 tracked Markdown files. In temporary Git fixt
 
 The [first documentation audit](../../documentation-audit.md#2026-11-20) recorded ownership, navigation, and source evidence for the design and product indexes. It corrected the API's description of CSRF token submission and rechecked the API and schema edits made since the design index's verification baseline. The documentation checker passed.
 
-On 2026-11-20, a fresh linked worktree at commit `1581796` started with a clean `git status --porcelain`. Starting at AGENTS.md, the handoff followed the execution plan guide and this plan to the README decision, both image references, the checker regression suite, and the audit checklist. The `git grep` command from milestone 3 returned two pins with the same digest. `bash scripts/check-docs.sh` passed for 28 Markdown files and 28 regression tests without a Compose stack in the handoff worktree.
+On 2026-11-20, a fresh linked worktree at commit `1581796` started with a clean `git status --porcelain`. Starting at AGENTS.md, the handoff followed the execution plan guide and this plan to the Python image update decision then recorded in the root project overview, both image references, the checker regression suite, and the audit checklist. The `git grep` command from milestone 3 returned two pins with the same digest. `bash scripts/check-docs.sh` passed for 28 Markdown files and 28 regression tests without a Compose stack in the handoff worktree.
 
-Contributors updating the Python image can find the decision directly in the README development setup.
+Contributors updating the Python image can find the decision in the [development guide](../../development.md#python-container-image-updates).

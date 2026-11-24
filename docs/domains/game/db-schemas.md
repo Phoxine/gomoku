@@ -24,7 +24,7 @@ The PostgreSQL board constraint applies to all database writes and rejects decim
 
 On 2026-11-20 at `d1edcb7`, a fresh, isolated PostgreSQL 17 database applied only the reviewed [initial game migration](../../../src/app/domain/game/migrations/0001_initial.py). The probe confirmed seven columns, `winner` as the only nullable column, no database defaults, the primary key index, five named game constraints, and the two nonnegative checks. This agrees with the migration and the [game model](../../../src/app/domain/game/model/game.py).
 
-From a fresh worktree, run the initialization and startup commands in the [development setup](../../../README.md#development-setup). Preview `bash scripts/compose.sh exec -T app uv run python manage.py migrate game 0001_initial --plan`, confirm only `game.0001_initial` is listed, and rerun the command without `--plan`. Run the following metadata probe twice and save each stdout to a separate scratch file.
+From a fresh worktree, run the initialization and startup commands in the [development setup](../../development.md#development-setup). Preview `bash scripts/compose.sh exec -T app uv run python manage.py migrate game 0001_initial --plan`, confirm only `game.0001_initial` is listed, and rerun the command without `--plan`. Run the following metadata probe twice and save each stdout to a separate scratch file.
 
 ```bash
 bash scripts/compose.sh exec -T db psql -X -P pager=off -v ON_ERROR_STOP=1 -U postgres -d gomoku -c '\d+ public.games'

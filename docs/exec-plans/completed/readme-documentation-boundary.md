@@ -4,7 +4,7 @@
 
 Keep the root project overview useful to people discovering or trying Gomoku. Give contributors and agents a development guide for setup, local server configuration, maintenance, and CI. Route agent instructions, skill references, and repository documents to the pages that own those procedures.
 
-The baseline at `6e5abe8` has eight direct links to the root overview across seven files. The [agent instructions](../../../AGENTS.md), [architecture guide](../../../ARCHITECTURE.md), [documentation index](../../index.md), and [schema probe](../../domains/game/db-schemas.md) use the development setup section. The [Compose troubleshooting reference](../../../.agents/skills/create-worktree/references/compose-troubleshooting.md) uses the local play section. The [knowledge base maintenance plan](../completed/knowledge-base-maintenance.md) links twice to the Python image update policy and also mentions its location in prose. The [dependency and security update triage plan](dependency-and-security-update-triage.md), added by [PR #73](https://github.com/Phoxine/gomoku/pull/73), adds a third link to the same policy. The other two plans from that PR have no direct links to the root overview.
+The baseline at `6e5abe8` had eight direct links to the root overview across seven files. The [agent instructions](../../../AGENTS.md), [architecture guide](../../../ARCHITECTURE.md), [documentation index](../../index.md), and [schema probe](../../domains/game/db-schemas.md) used the development setup section. The [Compose troubleshooting reference](../../../.agents/skills/create-worktree/references/compose-troubleshooting.md) used the local play section. The [knowledge base maintenance plan](knowledge-base-maintenance.md) linked twice to the Python image update policy and also mentioned its location in prose. The [dependency and security update triage plan](../active/dependency-and-security-update-triage.md), added by [PR #73](https://github.com/Phoxine/gomoku/pull/73), added a third link to the same policy. The other two plans from that PR had no direct links to the root overview.
 
 ## README outline
 
@@ -32,9 +32,13 @@ If the documentation checker reports a broken path or heading, inspect the targe
 ## Progress and decisions
 
 - [x] 2026-11-24. Rechecked the inventory after PR #73 merged and reviewed public README examples to define the Gomoku outline.
-- [ ] Review and approve the plan.
-- [ ] Move the procedures, redirect the references, and record validation results.
+- [x] 2026-11-24. Reviewed and merged the plan in [PR #85](https://github.com/Phoxine/gomoku/pull/85).
+- [x] 2026-11-24. Moved the procedures, redirected the references, and verified the quick start.
 
 ## Outcomes and retrospective
 
-Implementation is pending. Record the quick-start result, final reference inventory, and validation results before moving this plan to the completed directory.
+- Redirected all eight links across the seven inventoried files to the [development guide](../../development.md). The reference scan returned no matches. The Compose troubleshooting reference leads to the custom port instructions and retains its worktree and authorization guidance.
+- Ran the quick start in an isolated checkout and used headless Chrome to create a game and place a stone. Stopped the stack with the documented command and restarted it. A fresh browser profile loaded the same game by ID and showed the saved stone and next turn.
+- The Markdown checker and its 28 regression tests passed. The Stop hook completed Ruff formatting and lint checks and all 235 pytest tests.
+
+The audit checklist now asks reviewers to check where agent, skill, and internal documentation links lead. Repeat the reference scan when moving a procedure or policy.
