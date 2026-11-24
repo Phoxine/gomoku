@@ -22,9 +22,13 @@ Work from a dedicated checkout for implementation. Record `git status --short` a
 ## Progress and decisions
 
 - [x] 2026-11-20. Reviewed the existing workflow and defined scope at `eff8579`.
-- [ ] Inventory representative cases and define eligibility evidence.
-- [ ] Draft the skill and verify safe decisions against disposable fixtures.
+- [x] 2026-11-24. Inventoried normal and squash merges, separate local and remote tips, and modified, untracked, and ignored paths in disposable Git repositories.
+- [x] 2026-11-24. Added the [merged worktree cleanup skill](../../../.agents/skills/merged-worktree-cleanup/SKILL.md) and tested approval boundaries, conditional remote deletion, and volume retention.
 
 ## Outcomes and retrospective
 
-Pending execution. Record the walkthrough results, owner, and remaining follow-up before moving this plan to `docs/exec-plans/completed/`.
+An independent dry run found both merge types and held dirty or untracked worktrees and a remote tip that advanced beyond the squash head. It left checkouts, local branches, remote branches, and ignored files intact without deletion approval. A remote ref query can also match names with the same suffix, so the skill requires an exact field comparison. A configured fetch mapping can update local branches, so the skill fetches the target with an empty ref map.
+
+In a temporary bare remote, the explicit SHA lease rejected deletion after a new commit was pushed and preserved the new tip. A matching lease deleted only the approved remote ref and left the local branch intact. A separate fixture removed the approved worktree and local branch and preserved another checkout and its remote branch. Its disposable Compose volume retained test data after shutdown and restart.
+
+The repository maintainer approves each live action and confirms recovery of private worktree settings when needed. The validation used a local remote and disposable Compose project. Revisit tooling if repeated manual dry runs reveal a specific need.
