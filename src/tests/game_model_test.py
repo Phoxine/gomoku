@@ -40,6 +40,7 @@ try:
     transaction.set_autocommit(False)
     a = Game.objects.create()
     b = Game.objects.create()
+    assert str(a) == f'Game {a.pk} ({a.status})'
     assert len(a.board) == 15 and all(len(row) == 15 for row in a.board)
     a.board[0][0] = 1
     assert b.board[0][0] == 0

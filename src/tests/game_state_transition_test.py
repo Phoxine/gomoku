@@ -1,3 +1,5 @@
+from typing import cast
+
 import pytest
 
 from app.domain.game.service.game_service import apply_move, initialize_board
@@ -166,3 +168,31 @@ def test_apply_move_rejects_a_malformed_finished_state() -> None:
 
     with pytest.raises(ValueError, match="valid winner"):
         apply_move(state, Move(x=0, y=0))
+
+
+def test_apply_move_rejects_a_raw_status_string() -> None:
+    state = make_state(status=cast(GameStatus, GameStatus.IN_PROGRESS.value))
+
+    with pytest.raises(ValueError, match="invalid status"):
+        apply_move(state, Move(x=0, y=0))
+
+
+@pytest.mark.parametrize("current_player", [True, 3])
+def test_apply_move_rejects_an_invalid_current_player(current_player: int) -> None:
+    state = make_state(current_player=current_player)
+
+    with pytest.raises(ValueError, match="invalid current player"):
+        apply_move(state, Move(x=0, y=0))
+
+
+@pytest.mark.parametrize("status", [GameStatus.IN_PROGRESS, GameStatus.DRAW])
+def test_apply_move_rejects_an_unexpected_winner(status: GameStatus) -> None:
+    state = make_state(status=status, winner=1)
+
+    with pytest.raises(ValueError, match="cannot have a winner"):
+        apply_move(state, Move(x=0, y=0))
+
+
+def test_apply_move_rejects_a_coordinate_tuple() -> None:
+    with pytest.raises(TypeError, match="Move must be a Move instance"):
+        apply_move(make_state(), cast(Move, (0, 0)))
