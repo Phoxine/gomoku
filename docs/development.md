@@ -32,7 +32,11 @@ The app container receives `DJANGO_SECRET_KEY` and `DEBUG` from its local enviro
 
 ## Play locally
 
-Initialize the isolated worktree environment following [Development setup](#development-setup). Set a distinct `APP_PORT` in the worktree's root `.env` and `DEBUG=True` in `src/.env`, then start the web stack and apply migrations.
+Initialize the isolated worktree environment following [Development setup](#development-setup). Set a distinct `APP_PORT` in the worktree's root `.env` and `DEBUG=True` in `src/.env`.
+
+An exported `APP_PORT` takes precedence over the value in the worktree's root `.env`. To use the port from `.env`, run `unset APP_PORT` before starting the web stack.
+
+Start the web stack and apply migrations.
 
 ```bash
 bash scripts/compose.sh -f compose.web.yaml up -d
@@ -51,7 +55,7 @@ From the checkout, run the startup script.
 bash scripts/start-local-server.sh
 ```
 
-The script creates a local root `.env` with this checkout's Compose project name and a database password when one does not exist, then starts the web stack and applies migrations. It defaults to port `8000`. Set `APP_PORT` in the root `.env` to use another port. It refuses to create a new project when it detects the legacy `gomoku` database volume without its environment file, preserving that volume. Stop the server with `bash scripts/compose.sh down`.
+The script creates a local root `.env` with this checkout's Compose project name and a database password when one does not exist, then starts the web stack and applies migrations. It defaults to port `8000`. To use another port, follow the [port settings above](#play-locally). You can also specify a port when starting the server, for example with `APP_PORT=8766 bash scripts/start-local-server.sh`. The script refuses to create a new project when it detects the legacy `gomoku` database volume without its environment file, preserving that volume. Stop the server with `bash scripts/compose.sh down`.
 
 ## Python container image updates
 
