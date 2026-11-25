@@ -21,6 +21,12 @@ A new contributor should be able to resume from the plan and the checkout alone.
 
 See the [Cookbook guide to versioned execution plans](https://developers.openai.com/cookbook/articles/codex_exec_plans).
 
+## First milestone for feature plans
+
+For an execution plan that covers feature development, make drafting the applicable English feature documentation the first standalone milestone. Use the [feature documentation skill](../.agents/skills/document-feature/SKILL.md) to identify which API, database schema, and domain design documents need to be created or updated.
+
+Submit those drafts for human review. Record the human reviewer's explicit approval in the plan before starting any feature implementation. If the reviewer requests changes, revise the drafts and resubmit them for approval. As the feature is implemented, keep the approved documentation aligned with the implementation.
+
 ## Pull request scope
 
 When the task is to write or revise an execution plan as a standalone deliverable, use a `plan/<task-slug>` branch. Follow the [worktree setup and branch naming rules](../.agents/skills/create-worktree/SKILL.md). When a task includes implementing the planned work, choose the branch prefix for the implementation.
