@@ -6,10 +6,11 @@ description: Create or update English domain documentation for a feature, includ
 ## Feature Documentation
 
 - For every feature, create or update English documentation in `docs/domains/<domain>/` in the same change as the implementation. Keep it accurate as the feature evolves.
-- Maintain `apis.md` for affected APIs: describe each endpoint and purpose, HTTP method and path, parameters and request body (types, required fields, and defaults), and example requests and responses with status codes.
+- Maintain `apis.md` for affected APIs using the endpoint format below.
 - Maintain `db-schemas.md` for affected database structures: describe tables and their purpose, columns (types, nullability, defaults, constraints, and descriptions), indexes, foreign keys, relationships, and meaningful enum or status values.
 - Maintain `context-designs.md` for affected domain designs: describe the responsibilities and interfaces of repositories and services, including method signatures, and document entity fields, types, and meanings.
-- Document each applicable area; when a feature does not affect an area, do not invent APIs, database structures, or components. Update existing domain documents instead of duplicating them.
+- Before editing an existing document, read it in full and locate where it already covers the affected behavior. Limit edits to content affected by the feature and integrate changes into the existing sections, endpoint entries, and tables where they belong. After editing, review the full document for duplicated sections, endpoint entries, or descriptions of the same behavior.
+- If the feature has an execution plan, record review status, approvals, and implementation progress there.
 
 
 ## Examples
@@ -18,19 +19,66 @@ New and updated domain documents must follow the structure and formatting of the
 
 ### API example (`apis.md`)
 
-#### Get user detail
+Document each endpoint in this order. Start with the title, purpose, and method and URI. Then document any path parameters, query parameters, and request body. For query parameters, give the type, whether the parameter is required, its default, and an example URI with the query string. For a request body, include the content type, field types, required fields, defaults, and an example. Next describe the success status and what the response contains, then show a response example. Link to an existing response example when the body is identical. End with a representative error response and a table mapping endpoint errors to HTTP statuses, error codes, and meanings. Document shared middleware errors once when they apply across endpoints.
 
-Return a user by ID. Authentication is required.
+#### List users
 
-`GET /api/v1/users/{id}/`
+List users ordered by username, optionally filtered by account status. Authentication is required.
+
+`GET /api/v1/users/`
+
+| Query parameter | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `is_active` | boolean | No | None | Use `true` for active users or `false` for inactive users. Omit to include both. |
+| `limit` | integer | No | `20` | Maximum number of users to return, from `1` through `100`. |
+
+Example request with query parameters.
+
+`GET /api/v1/users/?is_active=true&limit=10`
+
+Response `200 OK` returns an array of matching users. If no users match, the array is empty.
+
+```json
+[
+  {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "username": "alice",
+    "is_active": true
+  }
+]
+```
+
+Example error response for a query with `limit=0`.
+
+```json
+{"error": "invalid_query"}
+```
+
+| Status | Error code | Meaning |
+| --- | --- | --- |
+| `400 Bad Request` | `invalid_query` | A query parameter has an invalid value. |
+
+#### Update a user
+
+Update the username of a user identified by UUID. Authentication is required.
+
+`PATCH /api/v1/users/{id}/`
 
 | Path parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `id` | UUID | Yes | User identifier. |
 
-Example request: `GET /api/v1/users/123e4567-e89b-12d3-a456-426614174000/`
+Send an `application/json` object with the following field.
 
-Response `200 OK`:
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `username` | string | Yes | None | New username. |
+
+```json
+{"username": "alice"}
+```
+
+Response `200 OK` returns the updated user.
 
 ```json
 {
@@ -39,13 +87,17 @@ Response `200 OK`:
 }
 ```
 
-Response `404 Not Found`:
+Example error response when the UUID does not identify a user.
 
 ```json
-{"detail": "Not found."}
+{"error": "user_not_found"}
 ```
 
-For endpoints with a request body or query parameters, include their types, required fields, defaults, and an example request as well.
+| Status | Error code | Meaning |
+| --- | --- | --- |
+| `400 Bad Request` | `invalid_request` | The request body is malformed or the username is missing or invalid. |
+| `404 Not Found` | `user_not_found` | No user exists with the supplied UUID. |
+| `415 Unsupported Media Type` | `unsupported_media_type` | The content type is other than `application/json`. |
 
 ### Database example (`db-schemas.md`)
 
