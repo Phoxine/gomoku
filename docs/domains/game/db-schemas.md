@@ -10,8 +10,8 @@ The `games` table stores each game. Its model and initial migration are in `app.
 | `status` | VARCHAR(16) | No | `in_progress` | None | Must be `in_progress`, `won`, or `draw`. | Game status. |
 | `winner` | SMALLINT | Yes | `null` | None | Must be `1` or `2` for a won game and null otherwise. | Winning player, if any. |
 | `mode` | VARCHAR(16) | No | `two_player` | `two_player` | `game_mode_valid` permits only `two_player` and `cpu`. | Turn ownership, chosen at creation and immutable through game commands. |
-| `created_at` | TIMESTAMP WITH TIME ZONE | No | Set on creation | None | Creation time. |
-| `updated_at` | TIMESTAMP WITH TIME ZONE | No | Set on save | None | Last update time. |
+| `created_at` | TIMESTAMP WITH TIME ZONE | No | Set on creation | None | None | Creation time. |
+| `updated_at` | TIMESTAMP WITH TIME ZONE | No | Set on save | None | None | Last update time. |
 
 The [mode migration](../../../src/app/domain/game/migrations/0002_game_mode.py) supplies `two_player` for existing rows and inserts from older app versions that omit `mode`. Existing game data and timestamps are preserved. The game revision is derived from the occupied cells of the saved board.
 

@@ -203,12 +203,13 @@ try:
         assert created_two_player.status_code == 201
         assert created_two_player.json()['mode'] == 'two_player'
 
-    created = post_json(games, {'mode': 'cpu'})
-    assert created.status_code == 201
-    cpu_start = created.json()
-    assert cpu_start['mode'] == 'cpu' and cpu_start['revision'] == 0
-    assert cpu_start['current_player'] == 1 and cpu_start['status'] == 'in_progress'
-    assert cpu_start['winner'] is None and cpu_start['board'] == state['board']
+    with override_settings(CPU_CREATION_ENABLED=True):
+        created = post_json(games, {'mode': 'cpu'})
+        assert created.status_code == 201
+        cpu_start = created.json()
+        assert cpu_start['mode'] == 'cpu' and cpu_start['revision'] == 0
+        assert cpu_start['current_player'] == 1 and cpu_start['status'] == 'in_progress'
+        assert cpu_start['winner'] is None and cpu_start['board'] == state['board']
     cpu_game_url = f"{games}{cpu_start['id']}/"
     cpu_move_url = cpu_game_url + 'cpu-move/'
     human_move_url = cpu_game_url + 'moves/'
