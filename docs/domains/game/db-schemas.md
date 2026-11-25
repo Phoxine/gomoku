@@ -9,11 +9,13 @@ The `games` table stores each game. Its model and initial migration are in `app.
 | `current_player` | SMALLINT | No | `1` | None | Must be `1` or `2`. | Player whose turn it is, or the last mover when the game has ended. |
 | `status` | VARCHAR(16) | No | `in_progress` | None | Must be `in_progress`, `won`, or `draw`. | Game status. |
 | `winner` | SMALLINT | Yes | `null` | None | Must be `1` or `2` for a won game and null otherwise. | Winning player, if any. |
-| `mode` (proposed) | VARCHAR(16) | No | `two_player` | `two_player` | Check permits only `two_player` and `cpu`. | Turn ownership, chosen at creation and immutable through game commands. |
+| `mode` | VARCHAR(16) | No | `two_player` | `two_player` | `game_mode_valid` permits only `two_player` and `cpu`. | Turn ownership, chosen at creation and immutable through game commands. |
 | `created_at` | TIMESTAMP WITH TIME ZONE | No | Set on creation | None | Creation time. |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | No | Set on save | None | Last update time. |
 
-The proposed additive migration supplies `two_player` for existing rows and inserts from older app versions that omit `mode`. Existing game data and timestamps are preserved. The game revision is derived from the occupied cells of the saved board.
+The [mode migration](../../../src/app/domain/game/migrations/0002_game_mode.py) supplies `two_player` for existing rows and inserts from older app versions that omit `mode`. Existing game data and timestamps are preserved. The game revision is derived from the occupied cells of the saved board.
+
+The migration adds the column and validates the mode constraint in one transaction. Constraint validation scans the table, and the schema change can block concurrent writers until it commits. In a rollout with overlapping app versions, apply the migration first and set `CPU_CREATION_ENABLED=false` on every new writer until the older writers are out of service. The setting defaults to enabled. Older writers can still create and update two-player games, but they cannot enforce CPU turn ownership.
 
 | Index | Columns | Type | Purpose |
 | --- | --- | --- | --- |
@@ -25,7 +27,7 @@ The PostgreSQL board constraint applies to all database writes and rejects decim
 
 ## Generated reference evaluation
 
-On 2026-11-20 at `d1edcb7`, a fresh, isolated PostgreSQL 17 database applied only the reviewed [initial game migration](../../../src/app/domain/game/migrations/0001_initial.py). The probe confirmed seven columns, `winner` as the only nullable column, no database defaults, the primary key index, five named game constraints, and the two nonnegative checks. This agrees with the migration and the [game model](../../../src/app/domain/game/model/game.py).
+On 2026-11-20 at `d1edcb7`, a fresh, isolated PostgreSQL 17 database applied only the reviewed [initial game migration](../../../src/app/domain/game/migrations/0001_initial.py). The probe confirmed seven columns, `winner` as the only nullable column, no database defaults, the primary key index, five named game constraints, and the two nonnegative checks. The evaluation covers the initial schema, before the addition of `mode`.
 
 From a fresh worktree, run the initialization and startup commands in the [development setup](../../development.md#development-setup). Preview `bash scripts/compose.sh exec -T app uv run python manage.py migrate game 0001_initial --plan`, confirm only `game.0001_initial` is listed, and rerun the command without `--plan`. Run the following metadata probe twice and save each stdout to a separate scratch file.
 

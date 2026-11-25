@@ -5,6 +5,7 @@ from django.db.models import Q
 
 from app.domain.game.model.board_constraint import board_constraint
 from app.domain.game.service.game_service import initialize_board
+from app.domain.game.state import GameMode
 
 
 class Game(models.Model):
@@ -22,6 +23,12 @@ class Game(models.Model):
         default=Status.IN_PROGRESS,
     )
     winner = models.PositiveSmallIntegerField(null=True, blank=True)
+    mode = models.CharField(
+        max_length=16,
+        choices=[(mode.value, mode.name) for mode in GameMode],
+        default=GameMode.TWO_PLAYER.value,
+        db_default=GameMode.TWO_PLAYER.value,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -29,6 +36,10 @@ class Game(models.Model):
         db_table = "games"
         constraints = [
             board_constraint(),
+            models.CheckConstraint(
+                condition=Q(mode__in=tuple(mode.value for mode in GameMode)),
+                name="game_mode_valid",
+            ),
             models.CheckConstraint(
                 condition=Q(current_player__in=(1, 2)),
                 name="game_current_player_valid",

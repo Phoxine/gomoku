@@ -1,5 +1,7 @@
 """Framework-agnostic Gomoku game rules."""
 
+from dataclasses import replace
+
 from app.domain.game.state import (
     Board,
     GameState,
@@ -121,9 +123,40 @@ def apply_move(state: GameState, move: Move) -> GameState:
         winner = None
         current_player = 2 if player == 1 else 1
 
-    return GameState(
+    return replace(
+        state,
         board=board,
         current_player=current_player,
         status=status,
         winner=winner,
     )
+
+
+def select_cpu_move(board: Board) -> Move | None:
+    """Prefer a white win, a black threat, then the closest cell to center."""
+    validate_board(board)
+    candidate_board = [row.copy() for row in board]
+    center = BOARD_SIZE // 2
+    block = None
+    fallback = None
+    closest_distance = BOARD_SIZE**2
+
+    for y, row in enumerate(board):
+        for x, cell in enumerate(row):
+            if cell != EMPTY:
+                continue
+            # has_won counts the stone at the pivot, so evaluate each color
+            # with that cell filled and restore it before the next candidate.
+            candidate_board[y][x] = 2
+            if has_won(candidate_board, x, y, 2):
+                return Move(x, y)
+            if block is None:
+                candidate_board[y][x] = 1
+                if has_won(candidate_board, x, y, 1):
+                    block = Move(x, y)
+            candidate_board[y][x] = EMPTY
+            distance = (x - center) ** 2 + (y - center) ** 2
+            if distance < closest_distance:
+                closest_distance = distance
+                fallback = Move(x, y)
+    return block or fallback

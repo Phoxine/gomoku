@@ -20,9 +20,15 @@
       <div class="status-label">THE GAME <span>01 / 01</span></div>
       <div class="turn-card" id="turn-card"><span class="status-stone" id="status-stone"></span><div><span class="card-caption" id="card-caption">READY TO PLAY</span><strong id="status-text" role="status" aria-live="polite" aria-atomic="true">Start a new game</strong></div></div>
       <p class="helper" id="status-help">Black plays first. Good luck!</p>
+      <label class="mode-label" for="game-mode">New game mode</label>
+      <select id="game-mode" class="mode-select">
+        <option value="two_player">Two players</option>
+        <option value="cpu">Play against CPU</option>
+      </select>
       <button type="button" class="new-game" id="new-game">New game <span aria-hidden="true">↗</span></button>
       <div class="restore"><label for="game-id">HAVE A GAME ID?</label><div class="restore-row"><input id="game-id" type="text" placeholder="Paste game ID" autocomplete="off" spellcheck="false"><button id="load-game" type="button" aria-label="Load game">→</button></div><p>Enter a game ID to restore a game.</p></div>
       <p class="message" id="message" role="status" aria-live="polite"></p>
+      <button type="button" class="retry-turn" id="retry-turn" hidden>Retry CPU turn</button>
     </section>
     <section class="play-area" aria-label="Game board">
       <div class="board-top"><span><span class="tiny-square"></span> THE BOARD</span><span>15 × 15 GRID</span></div>

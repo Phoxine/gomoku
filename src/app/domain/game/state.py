@@ -17,6 +17,11 @@ class GameStatus(StrEnum):
     DRAW = "draw"
 
 
+class GameMode(StrEnum):
+    TWO_PLAYER = "two_player"
+    CPU = "cpu"
+
+
 @dataclass(slots=True)
 class GameState:
     """Mutable rule-relevant game data, without persistence metadata."""
@@ -25,6 +30,11 @@ class GameState:
     current_player: Player
     status: GameStatus
     winner: Player | None = None
+    mode: GameMode = GameMode.TWO_PLAYER
+
+    @property
+    def revision(self) -> int:
+        return sum(len(row) - row.count(0) for row in self.board)
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +52,10 @@ class IllegalMoveReason(StrEnum):
     OUT_OF_BOUNDS = "out_of_bounds"
     OCCUPIED = "occupied"
     GAME_FINISHED = "game_finished"
+    INVALID_REQUEST = "invalid_request"
+    NOT_HUMAN_TURN = "not_human_turn"
+    STALE_REVISION = "stale_revision"
+    NOT_CPU_GAME = "not_cpu_game"
 
 
 class IllegalMoveError(ValueError):

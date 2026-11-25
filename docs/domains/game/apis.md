@@ -13,8 +13,8 @@ Responses representing games contain the following fields. Board cells are index
 | `current_player` | integer | Player whose turn is next, or the last mover when the game has ended. |
 | `status` | string | `in_progress`, `won`, or `draw`. |
 | `winner` | integer or null | Winning player (`1` or `2`) for a won game. Otherwise null. |
-| `mode` | string | Proposed. `two_player` or `cpu`. Existing games use `two_player`. |
-| `revision` | integer | Proposed. Number of occupied cells, from `0` through `225`. Each accepted stone increments it by one. |
+| `mode` | string | `two_player` or `cpu`. Games saved before CPU mode use `two_player`. |
+| `revision` | integer | Number of occupied cells, from `0` through `225`. Each accepted stone increments it by one. |
 
 A CPU game is waiting for the CPU when `mode` is `cpu`, `status` is `in_progress`, and `current_player` is `2`.
 
@@ -23,6 +23,8 @@ A CPU game is waiting for the CPU when `mode` is `cpu`, `status` is `in_progress
 For POST requests, send the CSRF cookie and its `csrftoken` value in the `X-CSRFToken` header, as the game's browser client does. Form POSTs to create a game can supply the token in the `csrfmiddlewaretoken` field with the cookie. JSON move requests use the header. When the CSRF check fails, Django returns `403 Forbidden` with its default error page. See [Django's CSRF guidance](https://docs.djangoproject.com/en/6.1/howto/csrf/).
 
 A malformed UUID does not match the route and returns Django's default `404` response. On a matching route, unsupported methods receive `405 Method Not Allowed` after middleware checks such as CSRF.
+
+After a move conflict or a lost POST response, fetch the saved state before accepting further input.
 
 ## Get CSRF cookie
 
@@ -38,11 +40,11 @@ Response `200 OK` sets the `csrftoken` cookie:
 
 ## Create a game
 
-Create an empty game with player 1 to move. The current endpoint ignores the body and creates a two-player game.
+Create an empty game with black to move.
 
 `POST /api/v1/games/`
 
-Under the proposal, send an `application/json` object with the following field. An empty body or an empty JSON object creates a two-player game. Requests with other content types keep the legacy behavior and create a two-player game regardless of body contents. Form submissions keep their existing CSRF handling.
+To select a mode, send an `application/json` object containing only the optional `mode` field. An empty body or an empty JSON object creates a two-player game. Requests with other content types create a two-player game regardless of body contents.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
@@ -52,7 +54,7 @@ Under the proposal, send an `application/json` object with the following field. 
 {"mode": "cpu"}
 ```
 
-Response `201 Created` returns the new game. This example shows the proposed response when creating a CPU game at revision `0`.
+Response `201 Created` returns the new game at revision `0`. This example creates a CPU game.
 
 ```json
 {
@@ -82,7 +84,7 @@ Response `201 Created` returns the new game. This example shows the proposed res
 }
 ```
 
-Example error response under the proposal when the requested mode is unsupported.
+Example error response when the requested mode is unsupported.
 
 ```json
 {"error": "invalid_mode"}
@@ -91,7 +93,8 @@ Example error response under the proposal when the requested mode is unsupported
 | Status | Error code | Meaning |
 | --- | --- | --- |
 | `400 Bad Request` | `invalid_request` | Malformed JSON, a non-object JSON body, or unknown JSON fields. |
-| `400 Bad Request` | `invalid_mode` | The requested mode is outside the supported values. |
+| `400 Bad Request` | `invalid_mode` | The supplied mode is neither `two_player` nor `cpu`. |
+| `503 Service Unavailable` | `cpu_creation_unavailable` | CPU game creation is disabled for rollout. Two-player creation remains available. |
 
 ## Get a game
 
@@ -103,7 +106,7 @@ Retrieve a saved game by ID without advancing the turn.
 | --- | --- | --- | --- |
 | `id` | UUID | Yes | Game identifier. |
 
-Response `200 OK` returns the saved board and current turn or result. This example shows the proposed response for a CPU game at revision `3`, with white to move.
+Response `200 OK` returns the saved board and current turn or result. This example shows a CPU game at revision `3`, with white to move.
 
 ```json
 {
@@ -145,7 +148,7 @@ Example error response when the UUID does not identify a saved game.
 
 ## Submit a move
 
-Place a stone for the current player in a transaction with a row lock. Under the CPU proposal, the human always plays black and the application checks the turn and revision under that lock.
+Place a stone for the current player in a transaction with a row lock. In CPU mode, the human plays black and the application checks the turn and revision under that lock.
 
 `POST /api/v1/games/{id}/moves/`
 
@@ -153,7 +156,7 @@ Place a stone for the current player in a transaction with a row lock. Under the
 | --- | --- | --- | --- |
 | `id` | UUID | Yes | Game identifier. |
 
-Send an `application/json` object containing exactly `x` and `y` for a two-player game. The proposal adds the required `expected_revision` field for CPU games.
+Send an `application/json` object containing exactly `x` and `y` for a two-player game. For a CPU game, include `expected_revision` as well.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
@@ -161,13 +164,13 @@ Send an `application/json` object containing exactly `x` and `y` for a two-playe
 | `y` | integer | Yes | None | Row, from `0` to `14`. |
 | `expected_revision` | integer | Yes for CPU games | None | Revision of the displayed board, from `0` through `225`. JSON booleans are invalid. |
 
-Example request body for a proposed CPU game.
+Example request body for a CPU game.
 
 ```json
 {"x": 3, "y": 4, "expected_revision": 0}
 ```
 
-Response `200 OK` returns the saved position after the human move. This example shows the proposed response at revision `1`, with white to move.
+Response `200 OK` returns the saved position after the human move. This example shows revision `1`, with white to move.
 
 ```json
 {
@@ -197,7 +200,7 @@ Response `200 OK` returns the saved position after the human move. This example 
 }
 ```
 
-Example error response under the proposal when the submitted position differs from the saved position.
+Example error response when a black turn is submitted from an earlier position.
 
 ```json
 {"error": "stale_revision"}
@@ -208,19 +211,17 @@ Example error response under the proposal when the submitted position differs fr
 | `400 Bad Request` | `invalid_request` | Malformed JSON, a non-object body, or missing or extra fields for the game mode. |
 | `400 Bad Request` | `invalid_coordinate` | A coordinate is not an integer. |
 | `400 Bad Request` | `out_of_bounds` | A coordinate is outside `0` through `14`. |
-| `400 Bad Request` | `invalid_revision` | CPU proposal. The supplied revision is not an integer from `0` through `225`. |
+| `400 Bad Request` | `invalid_revision` | The supplied revision is not an integer from `0` through `225`. |
 | `404 Not Found` | `game_not_found` | No game exists with the supplied UUID. |
 | `409 Conflict` | `occupied` | The selected position already contains a stone. |
 | `409 Conflict` | `game_finished` | The game has already ended. |
-| `409 Conflict` | `not_human_turn` | CPU proposal. An in-progress CPU game is waiting for white. |
-| `409 Conflict` | `stale_revision` | CPU proposal. The submitted position differs from the saved position. |
+| `409 Conflict` | `not_human_turn` | An in-progress CPU game is waiting for white. |
+| `409 Conflict` | `stale_revision` | An in-progress CPU game is waiting for black at a different revision. |
 | `415 Unsupported Media Type` | `unsupported_media_type` | The content type is other than `application/json`. |
-
-After a conflict or an uncertain POST result, fetch the saved state before accepting further input.
 
 ## Advance the CPU turn
 
-Apply one white stone to the specified pending position. This endpoint is part of the CPU proposal.
+Apply one white stone to the specified pending position.
 
 `POST /api/v1/games/{id}/cpu-move/`
 

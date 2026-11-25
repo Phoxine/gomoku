@@ -6,8 +6,10 @@ from app.domain.game.service.game_service import (
     has_won,
     initialize_board,
     place_stone,
+    select_cpu_move,
     validate_move,
 )
+from app.domain.game.state import Move
 
 
 def test_initialize_board_returns_empty_15_by_15_board() -> None:
@@ -110,6 +112,45 @@ def test_has_won_recognizes_six_or_more_consecutive_stones() -> None:
         board[7][x] = 2
 
     assert has_won(board, 4, 7, 2) is True
+
+
+def test_cpu_takes_a_win_before_blocking_an_earlier_threat() -> None:
+    board = initialize_board()
+    board[0][:4] = [1, 1, 1, 1]
+    board[14][11:] = [2, 2, 2, 2]
+    original = [row.copy() for row in board]
+
+    assert select_cpu_move(board) == Move(10, 14)
+    assert board == original
+
+
+def test_cpu_blocks_the_first_winning_black_move_in_board_order() -> None:
+    board = initialize_board()
+    board[0][1:5] = [1, 1, 1, 1]
+    board[1][:4] = [1, 1, 1, 1]
+
+    assert select_cpu_move(board) == Move(0, 0)
+
+
+def test_cpu_fallback_prefers_center_and_breaks_distance_ties_by_row_then_column() -> (
+    None
+):
+    board = initialize_board()
+
+    assert select_cpu_move(board) == Move(7, 7)
+    board[7][7] = 1
+    assert select_cpu_move(board) == Move(7, 6)
+    board[6][7] = 2
+    assert select_cpu_move(board) == Move(6, 7)
+
+
+def test_cpu_selects_the_only_empty_intersection_and_handles_a_full_board() -> None:
+    board = [[1 if (x + 2 * y) % 4 < 2 else 2 for x in range(15)] for y in range(15)]
+    board[14][14] = 0
+
+    assert select_cpu_move(board) == Move(14, 14)
+    board[14][14] = 2
+    assert select_cpu_move(board) is None
 
 
 def test_validate_board_rejects_invalid_shapes_and_cells() -> None:

@@ -3,7 +3,7 @@
 from uuid import UUID
 
 from app.domain.game.model.game import Game
-from app.domain.game.state import GameState, GameStatus
+from app.domain.game.state import GameMode, GameState, GameStatus
 
 
 class GameNotFoundError(LookupError):
@@ -20,6 +20,7 @@ class GameRepository:
             current_player=game.current_player,
             status=GameStatus(game.status),
             winner=game.winner,
+            mode=GameMode(game.mode),
         )
 
     def create(self, state: GameState) -> tuple[UUID, GameState]:
@@ -28,6 +29,7 @@ class GameRepository:
             current_player=state.current_player,
             status=state.status.value,
             winner=state.winner,
+            mode=state.mode.value,
         )
         return game.pk, self._state(game)
 

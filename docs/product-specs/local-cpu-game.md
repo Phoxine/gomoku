@@ -1,6 +1,6 @@
 # Local Game Against the CPU
 
-**Status** — Proposed
+**Status** — Available
 
 A player can play Gomoku against a computer opponent from the game page. The player controls one color, and the CPU places stones for the other color automatically.
 

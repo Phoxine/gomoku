@@ -4,6 +4,7 @@ import pytest
 
 from app.domain.game.service.game_service import apply_move, initialize_board
 from app.domain.game.state import (
+    GameMode,
     GameState,
     GameStatus,
     IllegalMoveError,
@@ -17,12 +18,14 @@ def make_state(
     current_player: int = 1,
     status: GameStatus = GameStatus.IN_PROGRESS,
     winner: int | None = None,
+    mode: GameMode = GameMode.TWO_PLAYER,
 ) -> GameState:
     return GameState(
         board=initialize_board() if board is None else board,
         current_player=current_player,
         status=status,
         winner=winner,
+        mode=mode,
     )
 
 
@@ -74,7 +77,8 @@ def test_apply_move_detects_wins_in_all_four_directions(dx: int, dy: int) -> Non
     assert state.board[7][7] == 0
 
 
-def test_apply_move_marks_a_full_non_winning_board_as_draw() -> None:
+@pytest.mark.parametrize("mode", list(GameMode))
+def test_apply_move_marks_a_full_non_winning_board_as_draw(mode: GameMode) -> None:
     board = initialize_board()
     row_offsets = (0, 0, 1, 0, 1, 1)
     for y, row in enumerate(board):
@@ -85,18 +89,22 @@ def test_apply_move_marks_a_full_non_winning_board_as_draw() -> None:
     x = y = 14
     final_player = board[y][x]
     board[y][x] = 0
-    state = make_state(board=board, current_player=final_player)
+    state = make_state(board=board, current_player=final_player, mode=mode)
 
     result = apply_move(state, Move(x=x, y=y))
 
     assert result.status is GameStatus.DRAW
     assert result.winner is None
     assert result.current_player == final_player
+    assert result.mode is mode and result.revision == 225
     assert all(cell != 0 for row in result.board for cell in row)
     assert state.board[y][x] == 0
 
 
-def test_apply_move_reports_win_when_final_cell_also_fills_the_board() -> None:
+@pytest.mark.parametrize("mode", list(GameMode))
+def test_apply_move_reports_win_when_final_cell_also_fills_the_board(
+    mode: GameMode,
+) -> None:
     board = initialize_board()
     row_offsets = (0, 0, 1, 0, 1, 1)
     for y, row in enumerate(board):
@@ -108,10 +116,11 @@ def test_apply_move_reports_win_when_final_cell_also_fills_the_board() -> None:
         board[y][x] = 1
     board[y][14] = 0
 
-    result = apply_move(make_state(board=board), Move(x=14, y=y))
+    result = apply_move(make_state(board=board, mode=mode), Move(x=14, y=y))
 
     assert result.status is GameStatus.WON
     assert result.winner == 1
+    assert result.mode is mode and result.revision == 225
     assert all(cell != 0 for row in result.board for cell in row)
 
 
