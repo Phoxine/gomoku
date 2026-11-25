@@ -1,16 +1,19 @@
 # Game Database Schema
 
-The `games` table stores each game. Its model and initial migration are in `app.domain.game`. Django supplies the defaults and automatic timestamps shown below. The table has no database column defaults.
+The `games` table stores each game. Its model and initial migration are in `app.domain.game`.
 
-| Column | PostgreSQL type | Nullable | Django default or automatic value | Constraints | Description |
-| --- | --- | --- | --- | --- | --- |
-| `id` | UUID | No | Generated UUID4 | Primary key | Game identifier. |
-| `board` | JSONB | No | Fresh 15×15 empty board | 15 rows of 15 integer cells with values `0`, `1`, or `2`. | Board cells, initially all zero. |
-| `current_player` | SMALLINT | No | `1` | Must be `1` or `2`. | Player whose turn it is, or the last mover when the game has ended. |
-| `status` | VARCHAR(16) | No | `in_progress` | Must be `in_progress`, `won`, or `draw`. | Game status. |
-| `winner` | SMALLINT | Yes | `null` | Must be `1` or `2` for a won game and null otherwise. | Winning player, if any. |
+| Column | PostgreSQL type | Nullable | Django default or automatic value | Database default | Constraints | Description |
+| --- | --- | --- | --- | --- | --- | --- |
+| `id` | UUID | No | Generated UUID4 | None | Primary key | Game identifier. |
+| `board` | JSONB | No | Fresh 15×15 empty board | None | 15 rows of 15 integer cells with values `0`, `1`, or `2`. | Board cells, initially all zero. |
+| `current_player` | SMALLINT | No | `1` | None | Must be `1` or `2`. | Player whose turn it is, or the last mover when the game has ended. |
+| `status` | VARCHAR(16) | No | `in_progress` | None | Must be `in_progress`, `won`, or `draw`. | Game status. |
+| `winner` | SMALLINT | Yes | `null` | None | Must be `1` or `2` for a won game and null otherwise. | Winning player, if any. |
+| `mode` (proposed) | VARCHAR(16) | No | `two_player` | `two_player` | Check permits only `two_player` and `cpu`. | Turn ownership, chosen at creation and immutable through game commands. |
 | `created_at` | TIMESTAMP WITH TIME ZONE | No | Set on creation | None | Creation time. |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | No | Set on save | None | Last update time. |
+
+The proposed additive migration supplies `two_player` for existing rows and inserts from older app versions that omit `mode`. Existing game data and timestamps are preserved. The game revision is derived from the occupied cells of the saved board.
 
 | Index | Columns | Type | Purpose |
 | --- | --- | --- | --- |
@@ -32,6 +35,6 @@ bash scripts/compose.sh exec -T db psql -X -P pager=off -v ON_ERROR_STOP=1 -U po
 
 `diff -u` exited 0 with no differences between the two probe outputs. In a scratch copy, changing `status` from `character varying(16)` to `character varying(8)` made it exit 1 and identify that row. The probe reads table metadata and leaves data rows untouched.
 
-For a documentation audit, compare one probe with the column and index tables and the constraint descriptions above. Match every column by name and compare its PostgreSQL type, nullability, and database default. Check the index name and definition and the meaning of each constraint. A blank value in the probe's default column means there is no database default. Check Django defaults separately against the model. Report each mismatch in the audit with the field or constraint, its documented definition, and the observed definition. For example, if the probe reports `character varying(8)` for `status`, record that the database shows `VARCHAR(8)` and this reference says `VARCHAR(16)`, even when two consecutive probes match.
+For a documentation audit, compare one probe with the column and index tables and the constraint descriptions above, using the entries that apply to the migration under audit. Match every column by name and compare its PostgreSQL type, nullability, and database default. Check the index name and definition and the meaning of each constraint. A blank value in the probe's default column means there is no database default. Check Django defaults separately against the model. Report each mismatch in the audit with the field or constraint, its documented definition, and the observed definition. For example, if the probe reports `character varying(8)` for `status`, record that the database shows `VARCHAR(8)` and this reference says `VARCHAR(16)`, even when two consecutive probes match.
 
 Keep the probe as an on-demand verification step. For the single table, a checked-in snapshot would duplicate the physical structure and add a regeneration and review step, while Django defaults, timestamp behavior, and game semantics would still need the maintained reference. Revisit generation if additional tables or frequent schema changes make direct inspection costly.

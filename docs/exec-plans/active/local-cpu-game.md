@@ -1,6 +1,6 @@
 # Local CPU Game Execution Plan
 
-**Status** — Draft for review
+**Status** — Feature documentation approved. Milestone 2 in progress.
 
 ## Goal and scope
 
@@ -77,11 +77,15 @@ Include any new CPU-specific suite in focused runs. For milestone evidence, reco
 ## Progress, discoveries, and decisions
 
 - [x] 2026-11-25. Drafted from the product spec merged at `81bcd01`. Existing row locking can serialize requests, and the board revision identifies the exact pending turn across retries.
-- [ ] Draft feature documentation and record explicit human approval in milestone 1.
+- [x] Draft the proposed [API contract](../../domains/game/apis.md), [database schema](../../domains/game/db-schemas.md), and [domain design](../../domains/game/context-designs.md).
+- [x] 2026-11-25. Run `bash scripts/check-docs.sh` in the implementation worktree. The checker passed for 45 Markdown files and all 28 checker tests passed.
+- [x] 2026-11-25. The human reviewer approved the API, schema, and domain design drafts and authorized continuing to milestone 2.
 - [ ] Obtain schema approval and complete milestone 2.
 - [ ] Complete CPU logic, failure recovery, and concurrency verification in milestone 3.
 - [ ] Complete browser integration, acceptance checks, and documentation verification in milestone 4.
 
 ## Outcomes and retrospective
 
-Implementation and its acceptance checks are pending. Record the actual API and migration decisions, validation commands and results, and any remaining work before moving this plan to `docs/exec-plans/completed/`.
+Implementation and its acceptance checks are pending. The product specification and product index already mark CPU play as proposed. After browser acceptance, mark it available in both and update the [architecture overview](../../../ARCHITECTURE.md) to describe the browser's mode choice, the separate CPU command and its revision check, and the rules service's move selector.
+
+Record the actual API and migration decisions, validation commands and results, and any remaining work before moving this plan to `docs/exec-plans/completed/`.
