@@ -1,6 +1,6 @@
 # Game Move History Execution Plan
 
-**Status** — Draft for review
+**Status** — Feature design approved. Schema and isolated database approval pending.
 
 ## Goal and scope
 
@@ -83,7 +83,8 @@ bash .codex/hooks/stop-validation.sh
 ## Progress, discoveries, and decisions
 
 - [x] 2026-11-25. Drafted after a CPU game investigation showed that the exact move order could not be determined from the stored board.
-- [ ] Publish and review the feature documentation drafts.
+- [x] 2026-11-26. Drafted the schema and domain design for human review. Reviewed the API contract and confirmed all public endpoints and payloads are covered by the existing contract. Local CPU mode landed in `main` in PR #93, so this feature includes both move commands.
+- [x] The user approved the feature design in the implementation conversation, including the documented move history scope. This approval completes milestone 1.
 - [ ] Record human approval for the schema and isolated database, then verify the upgrade.
 - [ ] Implement atomic recording and verify concurrency and rollback.
 - [ ] Verify reconstruction and deliver the feature.

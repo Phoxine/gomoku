@@ -94,6 +94,11 @@ class GameRepository:
     def get(self, game_id: UUID) -> GameState: ...
     def get_for_update(self, game_id: UUID) -> GameState: ...
     def save(self, game_id: UUID, state: GameState) -> GameState: ...
+    # Proposed move-history operations.
+    def save_move(
+        self, game_id: UUID, state: GameState, move: Move, player: Player
+    ) -> GameState: ...
+    def read_verified_history(self, game_id: UUID) -> GameHistory: ...
 
 class GameApplicationService:
     def __init__(self, repository: GameRepository | None = None) -> None: ...
@@ -107,15 +112,36 @@ class GameApplicationService:
     def advance_cpu(self, game_id: UUID, expected_revision: int) -> GameState: ...
 ```
 
-A new game has an empty board, black to move, `in_progress` status, and no winner. Missing identifiers raise `GameNotFoundError`, a `LookupError`. `get_for_update` requires an active transaction. Callers performing read-modify-write operations hold the row lock until `save` completes. `place_move` locks the game row in an atomic transaction, calls `apply_move`, and saves the resulting state. Failure rolls back the update. The row lock serializes moves on the same game while different games can proceed independently.
+A new game has an empty board, black to move, `in_progress` status, and no winner. Missing identifiers raise `GameNotFoundError`, a `LookupError`.
 
 ### Turn ownership and transactions
 
+`place_move` and `advance_cpu` each start an atomic transaction and acquire the game row lock through `get_for_update`. An accepted command calls `apply_move` and persists the resulting state before the transaction commits. The row lock serializes commands for the same game while different games can proceed independently.
+
+With the proposed move history, both commands persist accepted moves through `save_move`. The application service supplies the mover from the locked pre-move state. The repository saves the new snapshot and inserts one move row in the command's transaction. It uses the resulting revision as the move number, including for a win or draw. A failure in either write rolls back the command.
+
 In CPU mode, the human plays black. Under the row lock, `place_move` checks that CPU requests include an expected revision and two-player requests omit it. In an active CPU game, it also verifies black's turn and compares the expected revision with the saved board's occupied-cell count. A nonterminal black move commits as a pending CPU turn. A terminal black move commits the result immediately.
 
-The CPU advance command opens its own transaction and re-reads the state under the same row lock. It rejects the command for a two-player game. For a CPU game it advances only when the supplied revision matches the locked state, the game is in progress, and white is next. In every other CPU state it returns the saved position without writing. An eligible command applies the selected move through `apply_move` and saves the resulting state. A selector or persistence failure rolls back only the CPU transaction. The preceding human stone remains available from GET.
+The CPU advance command rejects two-player games. For a CPU game it advances only when the supplied revision matches the locked state, the game is in progress, and white is next. In every other CPU state it returns the saved position without writing. A selector or persistence failure rolls back the CPU transaction. The preceding human stone remains available from GET.
 
 Two simultaneous requests for the same pending revision serialize on the row. The first accepted command adds one stone, so the next request sees a different revision. The same comparison prevents a delayed request from advancing a later white turn and prevents replay across black turns. Two-player games accept coordinate-only moves for whichever human color is next. The application service uses `IllegalMoveError` for mode and turn rejections, as documented in the [game API](apis.md).
+
+### Verified move history (proposed)
+
+| Record | Field | Type | Meaning |
+| --- | --- | --- | --- |
+| `GameHistory` | `state` | `GameState` | Snapshot checked against the recorded moves. |
+| `GameHistory` | `start_revision` | `int` | Occupied-cell count when recording began. |
+| `GameHistory` | `moves` | `tuple[RecordedMove, ...]` | Verified moves in ascending order. |
+| `RecordedMove` | `move_number` | `int` | Board revision immediately after the stone. |
+| `RecordedMove` | `move` | `Move` | Coordinates of the accepted stone. |
+| `RecordedMove` | `player` | `Player` | Color of the accepted stone. |
+
+The internal history reader locks the game row while reading its snapshot, boundary, and move rows ordered by number. The lock serializes this read with the move commands. For snapshot revision `r` and boundary `b`, the reader requires `0 <= b <= r` and exactly the move numbers `b + 1` through `r`. It checks each recorded position and color against the snapshot. A boundary beyond the snapshot, a gap, an unexpected row, or a color mismatch raises `InconsistentGameHistoryError`. An empty history is valid when `b == r`. An unknown game ID raises `GameNotFoundError`.
+
+For a game with boundary zero, the verified rows contain the complete move sequence. Replaying these moves through `apply_move` from an empty board can reproduce the position, turn, and result. For an older game, the rows describe only the moves accepted after recording began. The board at the start of that range can be recovered by clearing the recorded positions from the saved snapshot. The order of stones already on that board is unavailable.
+
+The [game API](apis.md) continues to serve the saved board snapshot for loading and resuming play. History readback is internal.
 
 ## Web Interface
 
