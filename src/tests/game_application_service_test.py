@@ -33,10 +33,11 @@ django.setup()
 from django.core.management import call_command
 from django.db import close_old_connections, connection
 from app.domain.game.repository.game_repository import GameNotFoundError, GameRepository
+from app.domain.game.service import game_service
 from app.domain.game.service.application_service import GameApplicationService
 from app.domain.game.service.game_service import initialize_board
 from app.domain.game.state import (
-    GameState, GameStatus, IllegalMoveError, IllegalMoveReason, Move,
+    GameMode, GameState, GameStatus, IllegalMoveError, IllegalMoveReason, Move,
 )
 
 old_name = connection.settings_dict["NAME"]
@@ -152,6 +153,93 @@ try:
         list(executor.map(different_move, (0, 1)))
     final = service.get_game(concurrent_id)
     assert sorted(final.board[0][:2]) == [1, 2] and final.current_player == 1
+
+    cpu_id, initial_cpu = service.create_game(GameMode.CPU)
+    assert initial_cpu.mode is GameMode.CPU
+    pending = service.place_move(cpu_id, Move(0, 0), expected_revision=0)
+    assert pending.board[0][0] == 1 and pending.revision == 1
+    assert pending.current_player == 2 and service.get_game(cpu_id) == pending
+    try:
+        service.place_move(cpu_id, Move(14, 14), expected_revision=1)
+    except IllegalMoveError as exc:
+        assert exc.reason is IllegalMoveReason.NOT_HUMAN_TURN
+    else:
+        raise AssertionError("human moved during a pending CPU turn")
+    assert service.get_game(cpu_id) == pending
+
+    # Fail after writing the white stone, then verify the black move survived.
+    with patch.object(GameRepository, "save", fail_after_save):
+        try:
+            service.advance_cpu(cpu_id, expected_revision=1)
+        except RuntimeError as exc:
+            assert str(exc) == "simulated failure"
+        else:
+            raise AssertionError("CPU save failure did not propagate")
+    assert service.get_game(cpu_id) == pending
+
+    # Open both database connections and overlap their attempts at the row lock.
+    cpu_barrier = Barrier(2)
+    get_for_update = GameRepository.get_for_update
+    def overlap_cpu_lock(repository: GameRepository, game_id: uuid.UUID) -> GameState:
+        cpu_barrier.wait(timeout=10)
+        return get_for_update(repository, game_id)
+    def request_cpu(_: int) -> tuple[int, GameState]:
+        close_old_connections()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_backend_pid()")
+                backend_pid = cursor.fetchone()[0]
+            result = GameApplicationService().advance_cpu(cpu_id, expected_revision=1)
+            return backend_pid, result
+        finally:
+            connection.close()
+    with (
+        patch.object(GameRepository, "get_for_update", overlap_cpu_lock),
+        patch.object(
+            game_service, "select_cpu_move", wraps=game_service.select_cpu_move
+        ) as selector,
+        ThreadPoolExecutor(max_workers=2) as executor,
+    ):
+        results = list(executor.map(request_cpu, range(2)))
+        assert selector.call_count == 1
+    replied = service.get_game(cpu_id)
+    assert results[0][0] != results[1][0]
+    assert results[0][1] == results[1][1] == replied
+    assert replied.revision == 2 and replied.current_player == 1
+    assert replied.mode is GameMode.CPU
+    assert replied.board[0][0] == 1 and replied.board[7][7] == 2
+
+    try:
+        service.place_move(cpu_id, Move(14, 14), expected_revision=0)
+    except IllegalMoveError as exc:
+        assert exc.reason is IllegalMoveReason.STALE_REVISION
+    else:
+        raise AssertionError("a stale human request advanced the game")
+    assert service.get_game(cpu_id) == replied
+    later_pending = service.place_move(cpu_id, Move(14, 14), expected_revision=2)
+    with patch.object(GameRepository, "save", autospec=True) as save:
+        assert service.advance_cpu(cpu_id, expected_revision=1) == later_pending
+        save.assert_not_called()
+    assert service.get_game(cpu_id) == later_pending
+    assert later_pending.revision == 3 and later_pending.current_player == 2
+
+    # Terminal CPU moves apply the win-before-draw rule on the final cell.
+    for must_win in (False, True):
+        last_id, _ = service.create_game(GameMode.CPU)
+        last = [[1 if (x + 2 * y) % 4 < 2 else 2 for x in range(15)] for y in range(15)]
+        last[14][14] = 0
+        if must_win:
+            last[14][10:14] = [2, 2, 2, 2]
+        near_end = GameState(last, 2, GameStatus.IN_PROGRESS, mode=GameMode.CPU)
+        repo.save(last_id, near_end)
+        complete = service.advance_cpu(last_id, expected_revision=224)
+        assert complete.revision == 225 and complete.mode is GameMode.CPU
+        assert complete.board[14][14] == 2 and complete.current_player == 2
+        assert complete.status is (GameStatus.WON if must_win else GameStatus.DRAW)
+        assert complete.winner == (2 if must_win else None)
+        with patch.object(GameRepository, "save", autospec=True) as save:
+            assert service.advance_cpu(last_id, expected_revision=225) == complete
+            save.assert_not_called()
 finally:
     connection.creation.destroy_test_db(old_name, verbosity=0)
 """

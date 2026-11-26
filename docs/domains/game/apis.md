@@ -2,6 +2,8 @@
 
 The API creates and retrieves games and accepts moves. It has no authentication or participant authorization: anyone with a game UUID can read and update that game. Authentication and authorization must be added before exposing the API where that access is inappropriate.
 
+## Game responses
+
 Responses representing games contain the following fields. Board cells are indexed as `board[y][x]`.
 
 | Field | Type | Description |
@@ -10,15 +12,25 @@ Responses representing games contain the following fields. Board cells are index
 | `board` | array of 15 arrays of 15 integers | `0` is empty; `1` and `2` are players' stones. |
 | `current_player` | integer | Player whose turn is next, or the last mover when the game has ended. |
 | `status` | string | `in_progress`, `won`, or `draw`. |
-| `winner` | integer or null | Winning player (`1` or `2`) for a won game; otherwise null. |
+| `winner` | integer or null | Winning player (`1` or `2`) for a won game. Otherwise null. |
+| `mode` | string | `two_player` or `cpu`. Games saved before CPU mode use `two_player`. |
+| `revision` | integer | Number of occupied cells, from `0` through `225`. Each accepted stone increments it by one. |
+
+A CPU game is waiting for the CPU when `mode` is `cpu`, `status` is `in_progress`, and `current_player` is `2`.
+
+## Shared HTTP behavior
 
 For POST requests, send the CSRF cookie and its `csrftoken` value in the `X-CSRFToken` header, as the game's browser client does. Form POSTs to create a game can supply the token in the `csrfmiddlewaretoken` field with the cookie. JSON move requests use the header. When the CSRF check fails, Django returns `403 Forbidden` with its default error page. See [Django's CSRF guidance](https://docs.djangoproject.com/en/6.1/howto/csrf/).
 
+A malformed UUID does not match the route and returns Django's default `404` response. On a matching route, unsupported methods receive `405 Method Not Allowed` after middleware checks such as CSRF.
+
+After a move conflict or a lost POST response, fetch the saved state before accepting further input.
+
 ## Get CSRF cookie
 
-`GET /api/v1/csrf/`
+Obtain the CSRF cookie required for state-changing requests.
 
-Example request: `GET /api/v1/csrf/`
+`GET /api/v1/csrf/`
 
 Response `200 OK` sets the `csrftoken` cookie:
 
@@ -28,13 +40,21 @@ Response `200 OK` sets the `csrftoken` cookie:
 
 ## Create a game
 
-Create an empty game with player 1 to move. No request body is required.
+Create an empty game with black to move.
 
 `POST /api/v1/games/`
 
-Example request: `POST /api/v1/games/`
+To select a mode, send an `application/json` object containing only the optional `mode` field. An empty body or an empty JSON object creates a two-player game. Requests with other content types create a two-player game regardless of body contents.
 
-Response `201 Created`:
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `mode` | string | No | `two_player` | Use `two_player` for two human turns or `cpu` for human black and CPU white. |
+
+```json
+{"mode": "cpu"}
+```
+
+Response `201 Created` returns the new game at revision `0`. This example creates a CPU game.
 
 ```json
 {
@@ -58,11 +78,27 @@ Response `201 Created`:
   ],
   "current_player": 1,
   "status": "in_progress",
-  "winner": null
+  "winner": null,
+  "mode": "cpu",
+  "revision": 0
 }
 ```
 
+Example error response when the requested mode is unsupported.
+
+```json
+{"error": "invalid_mode"}
+```
+
+| Status | Error code | Meaning |
+| --- | --- | --- |
+| `400 Bad Request` | `invalid_request` | Malformed JSON, a non-object JSON body, or unknown JSON fields. |
+| `400 Bad Request` | `invalid_mode` | The supplied mode is neither `two_player` nor `cpu`. |
+| `503 Service Unavailable` | `cpu_creation_unavailable` | CPU game creation is disabled for rollout. Two-player creation remains available. |
+
 ## Get a game
+
+Retrieve a saved game by ID without advancing the turn.
 
 `GET /api/v1/games/{id}/`
 
@@ -70,21 +106,49 @@ Response `201 Created`:
 | --- | --- | --- | --- |
 | `id` | UUID | Yes | Game identifier. |
 
-Example request: `GET /api/v1/games/123e4567-e89b-12d3-a456-426614174000/`
+Response `200 OK` returns the saved board and current turn or result. This example shows a CPU game at revision `3`, with white to move.
 
-Response `200 OK` has the same fields and format as the game in the create response above. For a newly created game, it contains the same board and state.
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "board": [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  ],
+  "current_player": 2,
+  "status": "in_progress",
+  "winner": null,
+  "mode": "cpu",
+  "revision": 3
+}
+```
 
-Response `404 Not Found` for a well-formed UUID that does not identify a game:
+Example error response when the UUID does not identify a saved game.
 
 ```json
 {"error": "game_not_found"}
 ```
 
-A malformed UUID does not match the route and returns Django's default `404` response.
+| Status | Error code | Meaning |
+| --- | --- | --- |
+| `404 Not Found` | `game_not_found` | No game exists with the supplied UUID. |
 
 ## Submit a move
 
-Apply the move for the current player. A successful update is performed in a transaction with a row lock.
+Place a stone for the current player in a transaction with a row lock. In CPU mode, the human plays black and the application checks the turn and revision under that lock.
 
 `POST /api/v1/games/{id}/moves/`
 
@@ -92,20 +156,21 @@ Apply the move for the current player. A successful update is performed in a tra
 | --- | --- | --- | --- |
 | `id` | UUID | Yes | Game identifier. |
 
-The request content type must be `application/json`. The JSON body must be an object containing exactly these two fields:
+Send an `application/json` object containing exactly `x` and `y` for a two-player game. For a CPU game, include `expected_revision` as well.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `x` | integer | Yes | None | Column, from `0` to `14`. |
 | `y` | integer | Yes | None | Row, from `0` to `14`. |
+| `expected_revision` | integer | Yes for CPU games | None | Revision of the displayed board, from `0` through `225`. JSON booleans are invalid. |
 
-Example request: `POST /api/v1/games/123e4567-e89b-12d3-a456-426614174000/moves/`
+Example request body for a CPU game.
 
 ```json
-{"x": 3, "y": 4}
+{"x": 3, "y": 4, "expected_revision": 0}
 ```
 
-Response `200 OK`:
+Response `200 OK` returns the saved position after the human move. This example shows revision `1`, with white to move.
 
 ```json
 {
@@ -129,24 +194,93 @@ Response `200 OK`:
   ],
   "current_player": 2,
   "status": "in_progress",
-  "winner": null
+  "winner": null,
+  "mode": "cpu",
+  "revision": 1
 }
 ```
 
-Errors use the following JSON format, for example:
+Example error response when a black turn is submitted from an earlier position.
 
 ```json
-{"error": "occupied"}
+{"error": "stale_revision"}
 ```
 
 | Status | Error code | Meaning |
 | --- | --- | --- |
-| `400 Bad Request` | `invalid_request` | Malformed JSON or an object with missing or extra fields. |
+| `400 Bad Request` | `invalid_request` | Malformed JSON, a non-object body, or missing or extra fields for the game mode. |
 | `400 Bad Request` | `invalid_coordinate` | A coordinate is not an integer. |
 | `400 Bad Request` | `out_of_bounds` | A coordinate is outside `0` through `14`. |
+| `400 Bad Request` | `invalid_revision` | The supplied revision is not an integer from `0` through `225`. |
 | `404 Not Found` | `game_not_found` | No game exists with the supplied UUID. |
 | `409 Conflict` | `occupied` | The selected position already contains a stone. |
 | `409 Conflict` | `game_finished` | The game has already ended. |
-| `415 Unsupported Media Type` | `unsupported_media_type` | The request content type is not `application/json`. |
+| `409 Conflict` | `not_human_turn` | An in-progress CPU game is waiting for white. |
+| `409 Conflict` | `stale_revision` | An in-progress CPU game is waiting for black at a different revision. |
+| `415 Unsupported Media Type` | `unsupported_media_type` | The content type is other than `application/json`. |
 
-A malformed UUID does not match the route and returns Django's default `404` response. On a matching route, unsupported HTTP methods receive `405 Method Not Allowed` after passing middleware checks such as CSRF.
+## Advance the CPU turn
+
+Apply one white stone to the specified pending position.
+
+`POST /api/v1/games/{id}/cpu-move/`
+
+| Path parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | UUID | Yes | Game identifier. |
+
+Send an `application/json` object with exactly one field.
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `expected_revision` | integer | Yes | None | Revision of the pending position, from `0` through `225`. JSON booleans are invalid. |
+
+```json
+{"expected_revision": 1}
+```
+
+For a CPU game, response `200 OK` returns the game with the same ID and mode. If the game is in progress, white is next, and `expected_revision` matches the saved revision, the CPU places one white stone and the revision increases by one. Otherwise, the response returns the saved state without changing it. A duplicate request for an earlier white turn leaves a later pending white turn intact.
+
+In the example below, the CPU advances revision `1` to `2`.
+
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "board": [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  ],
+  "current_player": 1,
+  "status": "in_progress",
+  "winner": null,
+  "mode": "cpu",
+  "revision": 2
+}
+```
+
+Example error response for a request against a two-player game.
+
+```json
+{"error": "not_cpu_game"}
+```
+
+| Status | Error code | Meaning |
+| --- | --- | --- |
+| `400 Bad Request` | `invalid_request` | Malformed JSON, a non-object body, or missing or extra fields. |
+| `400 Bad Request` | `invalid_revision` | The supplied revision is not an integer from `0` through `225`. |
+| `404 Not Found` | `game_not_found` | No game exists with the supplied UUID. |
+| `409 Conflict` | `not_cpu_game` | The game uses two-player mode. |
+| `415 Unsupported Media Type` | `unsupported_media_type` | The content type is other than `application/json`. |

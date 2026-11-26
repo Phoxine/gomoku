@@ -8,9 +8,12 @@
   const loadButton = document.getElementById("load-game");
   const refreshButton = document.getElementById("refresh-game");
   const copyButton = document.getElementById("copy-id");
+  const modeSelect = document.getElementById("game-mode");
+  const retryButton = document.getElementById("retry-turn");
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   let game = null;
   let busy = false;
+  let syncRequired = false;
   let csrfReady = false;
   const cells = [];
   let focusedCell = 0;
@@ -45,6 +48,9 @@
         game_not_found: "Game not found. Check the ID and try again.",
         occupied: "That intersection is already occupied. Refresh the game and try another.",
         game_finished: "This game has finished. Refresh to see the result.",
+        not_human_turn: "The game is waiting for the CPU.",
+        stale_revision: "The game has moved on. Check the updated board.",
+        cpu_creation_unavailable: "New CPU games are temporarily unavailable.",
       };
       if (response.status === 403) csrfReady = false;
       throw new Error(errors[code] || "Something went wrong. Please try again.");
@@ -59,12 +65,18 @@
     })[0];
   }
 
+  function cpuPending() {
+    return game?.mode === "cpu" && game.status === "in_progress" && game.current_player === 2;
+  }
+
   function render() {
     const active = game && game.status === "in_progress";
+    const cpu = game?.mode === "cpu";
+    const pending = cpuPending();
     for (const { button, x, y } of cells) {
       const value = game ? game.board[y][x] : 0;
       button.className = `cell${value === 1 ? " black" : value === 2 ? " white" : ""}`;
-      button.disabled = busy || !active || value !== 0;
+      button.disabled = busy || !active || pending || syncRequired || value !== 0;
       button.setAttribute("aria-label", `Row ${y + 1}, column ${x + 1}, ${value === 1 ? "black stone" : value === 2 ? "white stone" : "empty"}`);
     }
     if (!cells[focusedCell] || cells[focusedCell].button.disabled) {
@@ -76,6 +88,10 @@
     loadButton.disabled = busy;
     refreshButton.disabled = busy || !game;
     copyButton.disabled = busy || !game;
+    modeSelect.disabled = busy;
+    retryButton.hidden = !syncRequired && !pending;
+    retryButton.disabled = busy || retryButton.hidden;
+    retryButton.textContent = syncRequired ? "Reload saved game" : "Retry CPU turn";
     currentId.textContent = game ? game.id : "—";
     const caption = document.getElementById("card-caption");
     const text = document.getElementById("status-text");
@@ -84,9 +100,17 @@
     stone.classList.toggle("white", !!game && (game.winner || game.current_player) === 2);
     const status = (value) => { if (text.textContent !== value) text.textContent = value; };
     if (!game) { caption.textContent = "READY TO PLAY"; status("Start a new game"); help.textContent = "Black plays first. Good luck!"; }
-    else if (game.status === "won") { caption.textContent = "GAME OVER"; status(`${game.winner === 1 ? "Black" : "White"} wins!`); help.textContent = "Five in a row. Well played."; }
-    else if (game.status === "draw") { caption.textContent = "GAME OVER"; status("It's a draw"); help.textContent = "A full board and a well-matched game."; }
-    else { caption.textContent = "CURRENT TURN"; status(`${game.current_player === 1 ? "Black" : "White"} to play`); help.textContent = "Choose an empty intersection."; }
+    else if (game.status === "won") { caption.textContent = "GAME OVER"; status(cpu ? (game.winner === 1 ? "You win!" : "CPU wins!") : `${game.winner === 1 ? "Black" : "White"} wins!`); help.textContent = cpu ? "CPU game · You played black." : "Five in a row. Well played."; }
+    else if (game.status === "draw") { caption.textContent = "GAME OVER"; status("It's a draw"); help.textContent = cpu ? "CPU game · You played black." : "A full board and a well-matched game."; }
+    else if (cpu) {
+      caption.textContent = "CPU GAME";
+      status(syncRequired ? "Checking the saved turn" : pending ? "CPU to play (white)" : "Your turn (black)");
+      help.textContent = pending || syncRequired ? "You play black." : "Choose an empty intersection.";
+    } else {
+      caption.textContent = "TWO PLAYERS";
+      status(`${game.current_player === 1 ? "Black" : "White"} to play`);
+      help.textContent = "Choose an empty intersection.";
+    }
   }
 
   async function perform(action, restoreBoardFocus = false) {
@@ -98,15 +122,78 @@
       if (restoreBoardFocus && (!document.activeElement || document.activeElement === document.body)) {
         const available = nearestAvailable(focusedCell);
         if (available) available.button.focus();
+        else if (!retryButton.hidden) retryButton.focus();
         else newButton.focus();
       }
     }
   }
 
-  async function load(id) {
+  function setGame(saved) {
+    game = saved;
+    syncRequired = false;
+    remember(game.id);
+    idInput.value = game.id;
+  }
+
+  async function readGame(id) {
     if (!uuidPattern.test(id)) throw new Error("Enter a valid game ID.");
-    const loaded = await request(`/api/v1/games/${id.toLowerCase()}/`);
-    game = loaded; remember(game.id); idInput.value = game.id;
+    setGame(await request(`/api/v1/games/${id.toLowerCase()}/`));
+  }
+
+  function postJson(url, payload) {
+    return request(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async function advanceCpu() {
+    while (cpuPending()) {
+      render();
+      // Let the confirmed human stone and white turn paint before the POST.
+      if (typeof requestAnimationFrame === "function" && !document.hidden) {
+        await new Promise((resolve) => {
+          const fallback = setTimeout(resolve, 100);
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            clearTimeout(fallback);
+            resolve();
+          }));
+        });
+      }
+      const revision = game.revision;
+      try {
+        game = await postJson(`/api/v1/games/${game.id}/cpu-move/`, { expected_revision: revision });
+      } catch {
+        throw new Error("The CPU turn was interrupted. Retry to check the saved board and continue.");
+      }
+      if (cpuPending() && game.revision <= revision) {
+        throw new Error("The CPU turn did not advance. Retry to check the saved board.");
+      }
+    }
+  }
+
+  async function load(id) {
+    await readGame(id);
+    await advanceCpu();
+  }
+
+  async function placeMove(x, y) {
+    const { id, mode, revision } = game;
+    const payload = mode === "cpu" ? { x, y, expected_revision: revision } : { x, y };
+    try {
+      game = await postJson(`/api/v1/games/${id}/moves/`, payload);
+    } catch (error) {
+      if (mode !== "cpu") throw error;
+      syncRequired = true;
+      try {
+        await readGame(id);
+      } catch {
+        throw new Error("Could not confirm your move. Reload the saved game before playing again.");
+      }
+      if (game.revision === revision) throw error;
+    }
+    await advanceCpu();
   }
 
   for (let y = 0; y < 15; y++) {
@@ -131,23 +218,23 @@
         }
       });
       button.addEventListener("click", () => {
+        if (button.disabled || busy || !game || cpuPending() || syncRequired) return;
         const restoreFocus = document.activeElement === button;
-        return perform(async () => {
-        game = await request(`/api/v1/games/${game.id}/moves/`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x, y }),
-        });
-        }, restoreFocus);
+        return perform(() => placeMove(x, y), restoreFocus);
       });
       board.appendChild(button); cells.push({ button, x, y });
     }
   }
   newButton.addEventListener("click", () => perform(async () => {
-    game = await request("/api/v1/games/", { method: "POST" });
-    remember(game.id); idInput.value = game.id;
+    const created = modeSelect.value === "cpu"
+      ? await postJson("/api/v1/games/", { mode: "cpu" })
+      : await request("/api/v1/games/", { method: "POST" });
+    setGame(created);
   }));
   loadButton.addEventListener("click", () => perform(() => load(idInput.value.trim())));
   idInput.addEventListener("keydown", (event) => { if (event.key === "Enter") loadButton.click(); });
   refreshButton.addEventListener("click", () => perform(() => load(game.id)));
+  retryButton.addEventListener("click", () => perform(() => load(game.id), true));
   copyButton.addEventListener("click", () => perform(async () => {
     try {
       await navigator.clipboard.writeText(game.id);

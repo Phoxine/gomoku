@@ -1,6 +1,6 @@
 # Gomoku Architecture
 
-Gomoku lets two people play a turn-based game in one browser. Django serves the board and the game API, and PostgreSQL stores games so players can resume them by ID.
+Gomoku supports two people taking turns in one browser and a solo game against the CPU. Django serves the board and the game API, and PostgreSQL stores games so players can resume them by ID.
 
 ## Code map
 
@@ -12,10 +12,10 @@ Browser → Django API → GameApplicationService → GameRepository → Django 
                               └→ Game rules service
 ```
 
-- **Web and routing.** Start at `src/config/urls.py` to find the page and API routes. The `game.html` template and `game.js` handle board rendering, player input, and restoring the last game ID.
-- **HTTP interface.** `game_views.py` parses requests and maps service outcomes to HTTP responses. `game_dto.py` defines the request and response DTOs. The move endpoint passes a game ID and a `Move` to the application service, then converts the returned `GameState` to a response DTO.
-- **Use cases.** `GameApplicationService` coordinates creating and loading games and submitting moves. It loads state through `GameRepository`, calls `apply_move` with that state and the move, and saves the returned state.
-- **Game rules.** Find board and move validation, turn changes, and win and draw detection in `src/app/domain/game/service/game_service.py`. The `GameState` and `Move` types live in `state.py`. Search for `game_service_test.py` and `game_state_transition_test.py` for examples of the rules.
+- **Web and routing.** Start at `src/config/urls.py` to find the page and API routes. The `game.html` template and `game.js` handle mode selection, board rendering, player input, and restoring the last game ID. For CPU games, the browser requests the pending white move after it renders the saved position.
+- **HTTP interface.** `game_views.py` parses requests and maps service outcomes to HTTP responses. `game_dto.py` defines the request and response DTOs. The API uses separate endpoints for human and CPU moves and converts returned `GameState` objects to response DTOs.
+- **Use cases.** `GameApplicationService` creates and loads games and runs move commands. It loads state through `GameRepository`, checks CPU turn ownership and revision when applicable, calls `apply_move`, and saves the returned state.
+- **Game rules.** Find board and move validation, turn changes, win and draw detection, and CPU move selection in `src/app/domain/game/service/game_service.py`. The `GameState` and `Move` types live in `state.py`. Search for `game_service_test.py` and `game_state_transition_test.py` for examples of the rules.
 - **Persistence.** `GameRepository` translates between the domain state and Django model instances. The `Game` model and the game domain migrations own the storage constraints.
 - **Runtime.** `src/config/settings.py` registers the game domain and configures PostgreSQL. `src/manage.py` is the management command entry point, and `src/config/` provides the WSGI and ASGI entry points.
 
@@ -27,7 +27,7 @@ Browser → Django API → GameApplicationService → GameRepository → Django 
 
 ## Cross-cutting concerns
 
-- **Concurrent moves.** The application service holds a transaction while the repository locks the game row, the rules service computes the next state, and the repository saves it. The lock serializes moves for the same game.
+- **Concurrent moves.** Each move has its own transaction. The application service locks the game row through the repository before applying a move and saving the result. For CPU games, the occupied-cell count identifies the current revision. Checking it under the lock prevents delayed commands from placing a stone on a later turn.
 - **HTTP security.** Django enforces CSRF checks on state-changing requests. Access to a game is currently based on knowing its ID and being able to reach the server. See the [security rules](.codex/rules/security.md) for input, credential, logging, and SQL requirements.
 - **Development isolation.** Each worktree uses a separate Docker Compose project for Django and PostgreSQL. [Development setup](docs/development.md#development-setup)
 

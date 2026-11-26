@@ -47,6 +47,7 @@ debug_value = os.environ.get("DEBUG", "False").lower()
 if debug_value not in ("true", "false"):
     raise ImproperlyConfigured("DEBUG must be True or False")
 DEBUG = debug_value == "true"
+CPU_CREATION_ENABLED = os.environ.get("CPU_CREATION_ENABLED", "true").lower() == "true"
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
 INSTALLED_APPS = [

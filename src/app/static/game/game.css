@@ -3,3 +3,30 @@
 .board-frame{overflow-x:auto;overscroll-behavior-x:contain}.board{min-width:364px}.board-hint{font-size:11px;line-height:1.5;color:#687965;margin:10px 0 0}.board-frame:focus-visible{outline:2px solid #324e38;outline-offset:3px}@media(min-width:600px){.scroll-hint{display:none}}
 
 .play-area,.intro{min-width:0}
+
+.mode-label {
+  display: block;
+  margin-top: 18px;
+  color: #526f57;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mode-select, .retry-turn {
+  border: 1px solid #aeb9a9;
+  border-radius: 3px;
+  background: #fff;
+  color: #28312b;
+  font: inherit;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.mode-select {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.retry-turn {
+  cursor: pointer;
+}

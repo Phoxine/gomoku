@@ -1,6 +1,6 @@
 # Local CPU Game Execution Plan
 
-**Status** — Draft for review
+**Status** — Implemented and verified
 
 ## Goal and scope
 
@@ -66,7 +66,7 @@ Include any new CPU-specific suite in focused runs. For milestone evidence, reco
 
 - **Plan PR.** Review the milestones, proposed design, and acceptance checks before implementation. The feature documentation still requires the explicit human approval in milestone 1.
 - **Feature PR.** Keep the migration, server turn contract, browser flow, regression tests, and updated feature docs in one PR. The browser needs the mode and revision contract, and CPU creation needs a complete turn flow so saved games can progress. Use the existing [delivery workflow](../../../.agents/skills/create-pr/SKILL.md) after the plan is reviewed and implementation is authorized.
-- **Activation order.** For any rollout with overlapping app versions, apply the additive migration first, then keep CPU creation unavailable at the API until every game writer enforces mode. Verify that the previous app version can create and update a two-player game against the expanded schema and that the new app reads the same game as two-player. Enable CPU creation only after the older writers are out of service.
+- **Activation order.** For any rollout with overlapping app versions, apply the additive migration first, then set `CPU_CREATION_ENABLED=false` on all new writers until every game writer enforces mode. Verify that the previous app version can create and update a two-player game against the expanded schema and that the new app reads the same game as two-player. Enable CPU creation only after the older writers are out of service.
 
 ## Recovery
 
@@ -77,11 +77,16 @@ Include any new CPU-specific suite in focused runs. For milestone evidence, reco
 ## Progress, discoveries, and decisions
 
 - [x] 2026-11-25. Drafted from the product spec merged at `81bcd01`. Existing row locking can serialize requests, and the board revision identifies the exact pending turn across retries.
-- [ ] Draft feature documentation and record explicit human approval in milestone 1.
-- [ ] Obtain schema approval and complete milestone 2.
-- [ ] Complete CPU logic, failure recovery, and concurrency verification in milestone 3.
-- [ ] Complete browser integration, acceptance checks, and documentation verification in milestone 4.
+- [x] Draft the proposed [API contract](../../domains/game/apis.md), [database schema](../../domains/game/db-schemas.md), and [domain design](../../domains/game/context-designs.md).
+- [x] 2026-11-25. Run `bash scripts/check-docs.sh` in the implementation worktree. The checker passed for 45 Markdown files and all 28 checker tests passed.
+- [x] 2026-11-25. The human reviewer approved the API, schema, and domain design drafts and authorized continuing to milestone 2.
+- [x] 2026-11-25. Run the milestone 2 baseline at `2513bed`. Django detected no model changes, 70 focused pytest tests passed in the isolated Compose project, and all nine Node browser interaction tests passed.
+- [x] 2026-11-25. The human reviewer approved the schema change and the worktree's isolated `gomoku` database. Applied `game.0001_initial` and `game.0002_game_mode`. Verified that a won fixture retained its UUID, full board, turn, status, and winner and acquired `two_player` mode. The old ORM model also created and updated a two-player match on the expanded schema.
+- [x] 2026-11-25. Completed CPU turn selection and commands. PostgreSQL tests verified rollback after a forced CPU save failure, exactly one white stone after overlapping revision-1 requests, and no writes when revision 1 was replayed during the later revision-3 white turn. Stale and out-of-turn human requests left the state intact.
+- [x] 2026-11-25. Verified creation, interrupted-turn recovery, concurrent two-tab restore, two-player play, legacy ID recovery, occupied-cell blocking, clipboard fallback, and last-intersection results in Chrome. Browser interaction tests also verified keyboard focus, and that terminal human moves send no CPU request.
 
 ## Outcomes and retrospective
 
-Implementation and its acceptance checks are pending. Record the actual API and migration decisions, validation commands and results, and any remaining work before moving this plan to `docs/exec-plans/completed/`.
+The implementation preserves coordinate-only moves for two-player games and uses board-derived revisions for both CPU commands. The migration adds a constant database default for older writers and validates the mode constraint in the same transaction. Reviewers requested an explicit activation setting. With CPU creation disabled, the API returns `503 cpu_creation_unavailable` for CPU creation and still serves two-player requests.
+
+Django detected no model drift. Ruff formatting and lint, 246 pytest tests, 17 Node browser interaction tests, and the documentation checker passed. In the isolated app container, the slowest of five batches of 1,000 selector calls averaged 5.52 ms per opening position, 2.16 ms per midgame position, and 0.11 ms per one-empty-cell position. Three local Chrome CPU POSTs, including a concurrent replay and a last-cell advance, returned headers in 43–52 ms. These are local measurements.
