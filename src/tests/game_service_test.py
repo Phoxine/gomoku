@@ -167,6 +167,48 @@ def _winning_moves(board: Board, player: Player) -> set[Move]:
     return wins
 
 
+@pytest.mark.parametrize("dx,dy", [(0, 0), (3, -3)], ids=["reported-game", "row-tie"])
+def test_cpu_prefers_a_forcing_defense_with_a_safe_follow_up(dx: int, dy: int) -> None:
+    moves = [
+        (7, 7),
+        (7, 6),
+        (6, 8),
+        (6, 7),
+        (8, 8),
+        (8, 7),
+        (7, 8),
+        (5, 8),
+        (8, 5),
+        (6, 6),
+        (8, 6),
+        (9, 5),
+        (9, 8),
+        (10, 8),
+        (7, 9),
+        (7, 5),
+        (7, 10),
+        (7, 11),
+        (8, 9),
+        (10, 7),
+        (6, 9),
+    ]
+    board = initialize_board()
+    for turn, (x, y) in enumerate(moves):
+        assert not place_stone(board, x + dx, y + dy, 1 if turn % 2 == 0 else 2)
+    original = [row.copy() for row in board]
+
+    assert select_cpu_move(board) == Move(4 + dx, 9 + dy)
+    assert board == original
+    assert not place_stone(board, 4 + dx, 9 + dy, 2)
+    assert _winning_moves(board, 2) == {Move(3 + dx, 10 + dy)}
+    assert not _winning_moves(board, 1)
+    assert not place_stone(board, 3 + dx, 10 + dy, 1)
+    assert select_cpu_move(board) == Move(5 + dx, 9 + dy)
+    assert not place_stone(board, 5 + dx, 9 + dy, 2)
+    assert not _winning_moves(board, 1)
+    assert not _black_has_forcing_reply(board)
+
+
 def _black_has_forcing_reply(board: Board) -> bool:
     """Simulate every black reply without using the selector's window pruning."""
     for y, row in enumerate(board):
@@ -183,6 +225,50 @@ def _black_has_forcing_reply(board: Board) -> bool:
     return False
 
 
+def test_cpu_breaks_forcing_defense_ties_by_column_in_the_same_row() -> None:
+    board = initialize_board()
+    board[1][2:6] = [1, 1, 0, 1]
+    board[7][5:10] = [2, 0, 2, 0, 2]
+
+    assert select_cpu_move(board) == Move(6, 7)
+    assert not place_stone(board, 6, 7, 2)
+    assert _winning_moves(board, 2) == {Move(8, 7)}
+
+
+def test_cpu_rejects_a_forcing_candidate_that_allows_a_black_double_threat() -> None:
+    board = initialize_board()
+    for x, y in [(4, 7), (5, 7), (7, 7), (6, 2), (6, 9)]:
+        board[y][x] = 1
+    for y in (4, 5, 6):
+        board[y][6] = 2
+
+    assert select_cpu_move(board) == Move(6, 7)
+    assert not place_stone(board, 6, 8, 2)
+    assert _winning_moves(board, 2) == {Move(6, 7)}
+    assert not place_stone(board, 6, 7, 1)
+    assert not _winning_moves(board, 2)
+    assert _winning_moves(board, 1) == {Move(3, 7), Move(8, 7)}
+
+
+def test_cpu_rejects_a_forcing_defense_with_an_unsafe_follow_up() -> None:
+    board = initialize_board()
+    for x, y in [(8, 4), (7, 5), (6, 6), (6, 7), (7, 7), (8, 7)]:
+        board[y][x] = 1
+    for y in (4, 5, 6):
+        board[y][10] = 2
+
+    # The nearer (10, 8) counters the initial threat but the continuation loses.
+    assert select_cpu_move(board) == Move(10, 2)
+    assert not place_stone(board, 10, 8, 2)
+    assert _winning_moves(board, 2) == {Move(10, 7)}
+    assert not _black_has_forcing_reply(board)
+    assert not place_stone(board, 10, 7, 1)
+    assert not _winning_moves(board, 2)
+    assert _winning_moves(board, 1) == {Move(9, 7)}
+    assert not place_stone(board, 9, 7, 2)
+    assert _black_has_forcing_reply(board)
+
+
 @pytest.mark.parametrize(
     "black,white,expected",
     [
@@ -196,7 +282,7 @@ def _black_has_forcing_reply(board: Board) -> bool:
         pytest.param(
             [(2, 1), (3, 1), (5, 1)],
             [(4, 7), (5, 7), (6, 7)],
-            Move(7, 7),
+            Move(8, 7),
             id="white-counter-win",
         ),
     ],

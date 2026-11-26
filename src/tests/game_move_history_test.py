@@ -121,6 +121,66 @@ def verify_cpu_threat_defense() -> None:
     assert (recorded.move_number, recorded.move, recorded.player) == (6, defense, 2)
 
 
+def verify_cpu_forcing_defense() -> None:
+    moves = [
+        (7, 7), (7, 6), (6, 8), (6, 7), (8, 8), (8, 7), (7, 8),
+        (5, 8), (8, 5), (6, 6), (8, 6), (9, 5), (9, 8), (10, 8),
+        (7, 9), (7, 5), (7, 10), (7, 11), (8, 9), (10, 7), (6, 9),
+    ]
+    game_id, _ = service.create_game(GameMode.CPU)
+    # Reproduce the recorded opening before exercising the real selector.
+    white_moves = [Move(*point) for point in moves[1::2]]
+    with patch.object(game_service, "select_cpu_move", side_effect=white_moves):
+        for revision, (x, y) in enumerate(moves):
+            if revision % 2:
+                service.advance_cpu(game_id, expected_revision=revision)
+            else:
+                service.place_move(game_id, Move(x, y), expected_revision=revision)
+
+    client = Client()
+    moves_url = f"/api/v1/games/{game_id}/moves/"
+    cpu_url = f"/api/v1/games/{game_id}/cpu-move/"
+    history = repository.read_verified_history(game_id)
+    assert history.state.revision == len(history.moves) == 21
+    assert history.state.current_player == 2
+    assert [(entry.move.x, entry.move.y) for entry in history.moves] == moves
+
+    for move in (Move(4, 9), Move(3, 10), Move(5, 9)):
+        state = history.state
+        command = {"expected_revision": state.revision}
+        url = cpu_url
+        if state.current_player == 1:
+            command.update(x=move.x, y=move.y)
+            url = moves_url
+        response = client.post(url, command, content_type="application/json")
+        assert response.status_code == 200
+        expected = game_service.apply_move(state, move)
+        payload = response.json()
+        assert payload["revision"] == expected.revision == state.revision + 1
+        assert payload["board"] == expected.board
+        assert payload["current_player"] == expected.current_player
+
+        saved = repository.read_verified_history(game_id)
+        assert saved.state == expected
+        assert len(saved.moves) == len(history.moves) + 1
+        assert saved.moves[:-1] == history.moves
+        recorded = saved.moves[-1]
+        assert (recorded.move_number, recorded.move, recorded.player) == (
+            expected.revision, move, state.current_player
+        )
+        history = saved
+
+        if expected.revision == 23:
+            # An earlier request cannot consume this newer pending white turn.
+            duplicate = client.post(
+                cpu_url, {"expected_revision": 21}, content_type="application/json"
+            )
+            assert duplicate.status_code == 200 and duplicate.json() == payload
+            assert repository.read_verified_history(game_id) == history
+
+    assert history.state.revision == 24
+
+
 def verify_legacy_suffix() -> UUID:
     board = game_service.initialize_board()
     board[3][:12] = [1, 2] * 6
@@ -224,6 +284,7 @@ try:
         verify_reconstruction(mode, win, GameStatus.WON)
         verify_reconstruction(mode, draw_moves(), GameStatus.DRAW)
     verify_cpu_threat_defense()
+    verify_cpu_forcing_defense()
     verify_history_errors(verify_legacy_suffix())
     verify_finished_legacy_game()
 finally:

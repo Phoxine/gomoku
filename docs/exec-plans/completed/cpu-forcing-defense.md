@@ -1,6 +1,6 @@
 # CPU Forcing Defense Execution Plan
 
-**Status** — Draft for review
+**Status** — Completed
 
 ## Goal and scope
 
@@ -81,10 +81,71 @@ If the preference needs to be reverted, restore the #98 ordering among effective
 ## Progress and decisions
 
 - [x] 2026-11-26. Replayed all 29 moves from the reported game. All 14 white moves matched the #98 selector. Simulated the forcing alternative on move 22 and verified a safe follow-up after black blocks.
-- [ ] Approve the English feature design.
-- [ ] Confirm the baseline regression, implement the preference, and record timing.
-- [ ] Verify the real CPU command, complete repository validation, and deliver the feature PR.
+- [x] 2026-11-26. Confirmed both prerequisite PRs merged and opened the implementation worktree from `origin/main` at `80ce833`. Drafted the [CPU selection design](../../domains/game/context-designs.md#cpu-move-selection) and [CPU product specification](../../product-specs/local-cpu-game.md#play-a-turn), and verified the existing CPU turn contract covers the proposed behavior.
+- [x] 2026-11-26. The requester explicitly approved the English feature documentation and selection design before implementation.
+- [x] 2026-11-26. Confirmed the regression fails against the merged selector and passes after implementation. Verified both tie-breakers and rejected candidates that fail the original defense or the follow-up check.
+- [x] 2026-11-26. Replayed the real CPU commands at revisions 21 and 23. Verified the responses and matching PostgreSQL history entries, and confirmed the duplicate revision 21 request left the newer pending turn intact.
+- [x] 2026-11-26. Accepted the implementation and measured responsiveness in code review. Passed 83 focused tests, documentation checks for 48 Markdown files and 28 checker tests, and the full Stop hook with Ruff formatting, lint, and 259 tests.
 
 ## Outcomes and retrospective
 
-Implementation and acceptance are pending. Record the verified move sequence, benchmark results, reviewed limitations, and validation outcomes here.
+The reported position now produces white `(4, 9)` at revision 22. Black's sole block is `(3, 10)` at revision 23, and the real selector follows with white `(5, 9)` at revision 24. Direct move simulation confirmed no immediate black win or forcing black double-threat reply after the last move. Each accepted request appends one matching history entry. A duplicate CPU request at revision 21 adds none.
+
+The preference checks only the forced black block and the next white placement. Two immediate white winning points are still evaluated as an ordinary effective defense. In the existing white counter-win fixture, the new ranking therefore uses a qualifying single-point defense even though the ordinary defense would leave two winning points.
+
+### Selector timing
+
+Both versions ran in the same isolated app container and Python process. The baseline was `80ce833`. Each fixture used 20 warm-up calls and 500 timed calls per selector. Each sample alternated which selector ran first. The timings cover the selector call alone.
+
+| Position | Stones | Baseline median / p95 (ms) | Updated median / p95 (ms) |
+| --- | ---: | ---: | ---: |
+| Sparse opening | 1 | 1.76 / 5.08 | 1.78 / 5.02 |
+| Reported move 22 | 21 | 2.12 / 5.29 | 2.35 / 5.61 |
+| Dense board with multiple defenses | 135 | 1.25 / 2.43 | 1.49 / 3.20 |
+
+The reported position had the highest updated p95 at 5.61 ms. The dense position had the largest p95 increase at 0.77 ms. Code review accepted the measured responsiveness within the CPU transaction.
+
+Run the following from the implementation checkout with its app container active.
+
+```bash
+git show 80ce833:src/app/domain/game/service/game_service.py > /tmp/gomoku-forcing-baseline.py
+sed -n '/^moves = \[/,/^\]/p' docs/exec-plans/completed/cpu-forcing-defense.md > /tmp/gomoku-forcing-moves.py
+cat > /tmp/gomoku-forcing-benchmark.py <<'PY'
+from statistics import median, quantiles
+from time import perf_counter_ns
+
+from app.domain.game.service.game_service import select_cpu_move as updated
+
+baseline = select_cpu_move
+sparse = initialize_board()
+sparse[7][7] = 1
+reported = initialize_board()
+for i, (x, y) in enumerate(moves):
+    reported[y][x] = 1 + i % 2
+dense = initialize_board()
+for y in range(7, 15):
+    for x in range(15):
+        dense[y][x] = 1 if (x + 2 * y) % 4 < 2 else 2
+for y in (0, 3):
+    for x in (2, 3, 5, 9, 10, 12):
+        dense[y][x] = 1
+for x in (0, 2, 4):
+    dense[5][x] = 2
+for name, board in (("sparse", sparse), ("reported", reported), ("dense", dense)):
+    selectors = (baseline, updated)
+    timings = ([], [])
+    print(name)
+    for _ in range(20):
+        for select in selectors:
+            select(board)
+    for sample in range(500):
+        for index in (sample % 2, 1 - sample % 2):
+            start = perf_counter_ns()
+            selectors[index](board)
+            timings[index].append((perf_counter_ns() - start) / 1_000_000)
+    for select, timings_ms in zip(selectors, timings, strict=True):
+        print(select(board), f"{median(timings_ms):.2f}", f"{quantiles(timings_ms, n=100)[94]:.2f}")
+PY
+cat /tmp/gomoku-forcing-baseline.py /tmp/gomoku-forcing-moves.py /tmp/gomoku-forcing-benchmark.py > /tmp/gomoku-forcing-timing-input.py
+bash scripts/compose.sh exec -T app uv run python - < /tmp/gomoku-forcing-timing-input.py
+```
