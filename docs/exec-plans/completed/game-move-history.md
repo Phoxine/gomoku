@@ -1,6 +1,6 @@
 # Game Move History Execution Plan
 
-**Status** — Draft for review
+**Status** — Implementation and local acceptance complete.
 
 ## Goal and scope
 
@@ -56,7 +56,7 @@ Run the checks from the implementation worktree root with its isolated Compose s
 
 ```bash
 bash scripts/compose.sh exec -T app uv run python manage.py makemigrations --check --dry-run
-bash scripts/compose.sh exec -T app uv run pytest -q tests/game_model_test.py tests/game_application_service_test.py tests/game_api_test.py tests/game_state_transition_test.py tests/architecture_boundaries_test.py
+bash scripts/compose.sh exec -T app uv run pytest -q tests/game_model_test.py tests/game_application_service_test.py tests/game_application_service_unit_test.py tests/game_move_history_test.py tests/game_api_test.py tests/game_state_transition_test.py tests/architecture_boundaries_test.py
 bash scripts/check-docs.sh
 bash .codex/hooks/stop-validation.sh
 ```
@@ -83,11 +83,17 @@ bash .codex/hooks/stop-validation.sh
 ## Progress, discoveries, and decisions
 
 - [x] 2026-11-25. Drafted after a CPU game investigation showed that the exact move order could not be determined from the stored board.
-- [ ] Publish and review the feature documentation drafts.
-- [ ] Record human approval for the schema and isolated database, then verify the upgrade.
-- [ ] Implement atomic recording and verify concurrency and rollback.
-- [ ] Verify reconstruction and deliver the feature.
+- [x] 2026-11-26. Drafted the schema and domain design for human review. Reviewed the API contract and confirmed all public endpoints and payloads are covered by the existing contract. Local CPU mode landed in `main` in PR #93, so this feature includes both move commands.
+- [x] The user approved the feature design in the implementation conversation, including the documented move history scope. This approval completes milestone 1.
+- [x] The user approved the schema, backfill, and isolated PostgreSQL target for this worktree. The user requested a review of `game.0003_game_move_history` before application.
+- [x] The user approved the reviewed migration for application. Applied `game.0003_game_move_history` to the isolated PostgreSQL database after creating a 12-stone game at `game.0002_game_mode`. The game retained its ID, board, turn, result, mode, and update timestamp. The history boundary was 12 and the move table was empty.
+- [x] Implemented atomic recording and verified concurrency, rollback, and CPU retry and replay behavior.
+- [x] Verified reconstruction and completed local acceptance. Delivery is limited to a local commit at the user's request.
 
 ## Outcomes and retrospective
 
-Implementation and acceptance are pending. Record the actual migration, test results, legacy-history coverage, and any unresolved rollout dependency here.
+The isolated PostgreSQL database applied [`game.0003_game_move_history`](../../../src/app/domain/game/migrations/0003_game_move_history.py). The upgraded 12-stone game recorded moves 13 through 15 and passed history readback. PostgreSQL exposed the primary key and the two composite unique indexes on `game_moves`. The automated migration test also exercised a resumed legacy CPU game and rejected invalid rows.
+
+The focused suite passed 49 tests. The full Stop hook passed formatting, lint, and all 247 tests, including rollback, concurrent writes, stale CPU requests, missing or mismatched history, and win and draw reconstruction in both modes. Django reported no model and migration drift. CPU mode was already present in the implementation base.
+
+Early moves in legacy games remain unavailable. Deployment requires a writer pause through backfill, verification, and cutover. Reversing the schema to `game.0002_game_mode` drops recorded moves and their boundaries. Keep the history tables and repair forward once capture has started. Validation used the isolated worktree database and disposable test databases.

@@ -46,7 +46,7 @@ class GameApplicationService:
                     raise IllegalMoveError(IllegalMoveReason.NOT_HUMAN_TURN)
                 if expected_revision != state.revision:
                     raise IllegalMoveError(IllegalMoveReason.STALE_REVISION)
-            return self.repository.save(game_id, game_service.apply_move(state, move))
+            return self._apply_and_save_move(game_id, state, move)
 
     def advance_cpu(self, game_id: UUID, expected_revision: int) -> GameState:
         with transaction.atomic():
@@ -63,4 +63,12 @@ class GameApplicationService:
             move = game_service.select_cpu_move(state.board)
             if move is None:
                 raise ValueError("Pending CPU turn has no legal move")
-            return self.repository.save(game_id, game_service.apply_move(state, move))
+            return self._apply_and_save_move(game_id, state, move)
+
+    def _apply_and_save_move(
+        self, game_id: UUID, state: GameState, move: Move
+    ) -> GameState:
+        next_state = game_service.apply_move(state, move)
+        return self.repository.save_move(
+            game_id, next_state, move, state.current_player
+        )

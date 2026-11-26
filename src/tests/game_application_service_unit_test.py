@@ -59,7 +59,7 @@ def test_place_move_locks_and_saves_transition_inside_transaction(
     game_id = uuid4()
     state = GameState(initialize_board(), 1, GameStatus.IN_PROGRESS)
     repository.get_for_update.return_value = state
-    repository.save.side_effect = lambda game_id, updated: updated
+    repository.save_move.side_effect = lambda game_id, updated, move, player: updated
     transaction = Mock()
     transaction.attach_mock(repository, "repository")
     transaction.atomic.return_value = nullcontext()
@@ -75,7 +75,7 @@ def test_place_move_locks_and_saves_transition_inside_transaction(
     assert transaction.mock_calls == [
         ("atomic", (), {}),
         ("repository.get_for_update", (game_id,), {}),
-        ("repository.save", (game_id, result), {}),
+        ("repository.save_move", (game_id, result, Move(3, 4), 1), {}),
     ]
 
 
@@ -91,7 +91,7 @@ def test_place_move_does_not_save_illegal_move(service_module: ModuleType) -> No
                 uuid4(), Move(3, 4)
             )
 
-    repository.save.assert_not_called()
+    repository.save_move.assert_not_called()
 
 
 def test_advance_cpu_locks_and_saves_only_the_selected_move(
@@ -103,7 +103,7 @@ def test_advance_cpu_locks_and_saves_only_the_selected_move(
     board[0][0] = 1
     state = GameState(board, 2, GameStatus.IN_PROGRESS, mode=GameMode.CPU)
     repository.get_for_update.return_value = state
-    repository.save.side_effect = lambda game_id, updated: updated
+    repository.save_move.side_effect = lambda game_id, updated, move, player: updated
     transaction = Mock()
     transaction.attach_mock(repository, "repository")
     transaction.atomic.return_value = nullcontext()
@@ -118,7 +118,7 @@ def test_advance_cpu_locks_and_saves_only_the_selected_move(
     assert transaction.mock_calls == [
         ("atomic", (), {}),
         ("repository.get_for_update", (game_id,), {}),
-        ("repository.save", (game_id, result), {}),
+        ("repository.save_move", (game_id, result, Move(7, 7), 2), {}),
     ]
 
 
@@ -164,7 +164,7 @@ def test_advance_cpu_skips_selection_and_persistence_when_ineligible(
 
     assert result is state
     select.assert_not_called()
-    repository.save.assert_not_called()
+    repository.save_move.assert_not_called()
 
 
 def test_advance_cpu_rejects_two_player_games(service_module: ModuleType) -> None:
@@ -180,4 +180,4 @@ def test_advance_cpu_rejects_two_player_games(service_module: ModuleType) -> Non
         service_module.GameApplicationService(repository).advance_cpu(uuid4(), 0)
 
     assert error.value.reason is IllegalMoveReason.NOT_CPU_GAME
-    repository.save.assert_not_called()
+    repository.save_move.assert_not_called()
