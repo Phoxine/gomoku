@@ -9,7 +9,7 @@ description: Create or update English domain documentation for a feature, includ
 - Maintain `apis.md` for affected APIs using the endpoint format below.
 - Maintain `db-schemas.md` for affected database structures: describe tables and their purpose, columns (types, nullability, defaults, constraints, and descriptions), indexes, foreign keys, relationships, and meaningful enum or status values.
 - Maintain `context-designs.md` for affected domain designs: describe the responsibilities and interfaces of repositories and services, including method signatures, and document entity fields, types, and meanings.
-- Before editing an existing document, read it in full and locate where it already covers the affected behavior. Limit edits to content affected by the feature and integrate changes into the existing sections, endpoint entries, and tables where they belong. After editing, review the full document for duplicated sections, endpoint entries, or descriptions of the same behavior.
+-  ⚠️**IMPORTANT**: Before editing an existing document, read it in full and locate where it already covers the affected behavior. Limit edits to content affected by the feature and integrate changes into the existing sections, endpoint entries, and tables where they belong. After editing, review the full document for duplicated sections, endpoint entries, or descriptions of the same behavior.
 - If the feature has an execution plan, record review status, approvals, and implementation progress there.
 
 
