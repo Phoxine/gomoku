@@ -4,7 +4,7 @@
 
 ## Goal and scope
 
-When several white moves prevent black from forcing a win through a double threat, prefer a defense that also forces black to answer a white winning point and gives white a safe follow-up. Preserve the priorities for an immediate white win and an immediate black block. This change applies to the [game rules service](../../../src/app/domain/game/service/game_service.py), its tests, and the [CPU selection design](../../domains/game/context-designs.md#cpu-move-selection). The [CPU turn contract](../../domains/game/apis.md#advance-the-cpu-turn), browser, persistence, and database schema require no changes.
+After checking immediate wins for both sides, prioritize white moves that create two or more winning intersections. Otherwise, when several white moves prevent black from forcing a win through a double threat, prefer a defense that also forces black to answer a white winning point and gives white a safe follow-up. This change applies to the [game rules service](../../../src/app/domain/game/service/game_service.py), its tests, and the [CPU selection design](../../domains/game/context-designs.md#cpu-move-selection). The [CPU turn contract](../../domains/game/apis.md#advance-the-cpu-turn), browser, persistence, and database schema require no changes.
 
 The plan PR can land independently on `main`. Implementation depends on [PR #98](https://github.com/Phoxine/gomoku/pull/98), which supplies the double-threat defense. Start the feature branch from `origin/main` after #98 merges and confirm the reproduction against the merged selector.
 
@@ -22,14 +22,15 @@ moves = [
 
 On move 22, the selector in #98 chooses `(5, 9)` by proximity to the center. White can instead play `(4, 9)`, creating a single winning intersection at `(3, 10)`. Black has no immediate win and must occupy `(3, 10)` to prevent white from winning. White can then play `(5, 9)` to stop the projected double threats. Test this continuation independently of the original saved game and its ID.
 
-The later position before move 26 has no complete defense. It illustrates a separate fallback policy decision. This plan keeps the existing center fallback in that case and in positions without a forcing black reply.
+The later position before move 26 has no complete defense. It illustrates a separate fallback policy decision. The center fallback applies when white has neither a higher-priority tactical move nor a complete defense.
 
 ## Proposed selection
 
 1. Preserve the immediate white-win and immediate black-block paths, including their row and column order.
-2. If the base selector finds black double threats, consider only the white moves that defend against all of them under the existing rule. A black reply that leaves an immediate white win is already covered by that rule.
-3. Give preference to a defense that leaves exactly one immediate white winning intersection, gives black no immediate win, and passes the follow-up check. Simulate black occupying that intersection. The check passes if the resulting position is a draw or white has a legal next move that wins immediately or leaves black with neither an immediate win nor a forcing double-threat reply. Apply the same requirements when the next white move blocks an immediate black threat.
-4. Rank qualifying forcing defenses by squared distance to `(7, 7)`, then ascending row and column. If no defense qualifies, preserve the existing defense ordering and center fallback. Creating two immediate white winning intersections and general offensive scoring are outside this preference.
+2. Select a white move that creates at least two distinct winning intersections for the next white turn, even if black has no double threat. Rank qualifying moves by squared distance to `(7, 7)`, then ascending row and column.
+3. Otherwise, if the base selector finds black double threats, consider only the white moves that defend against all of them under the existing rule. A black reply that leaves an immediate white win is already covered by that rule.
+4. Give preference to a defense that leaves exactly one immediate white winning intersection, gives black no immediate win, and passes the follow-up check. Simulate black occupying that intersection. The check passes if the resulting position is a draw or white has a legal next move that wins immediately or leaves black with neither an immediate win nor a forcing double-threat reply. Apply the same requirements when the next white move blocks an immediate black threat.
+5. Rank qualifying forcing defenses by the same distance and coordinate ordering. If no defense qualifies for this preference, preserve the existing defense ordering and center fallback.
 
 ## Milestones
 
@@ -63,9 +64,10 @@ bash .codex/hooks/stop-validation.sh
 | --- | --- |
 | Reported position before move 22 | White chooses `(4, 9)`; black has no immediate win and must block `(3, 10)`; white can then defend with `(5, 9)`. |
 | White can win immediately or black has an immediate win | Existing priority and tie order apply. |
+| Reported position before move 36 | White chooses `(7, 9)` and can win at `(4, 6)` or `(9, 11)` on its next turn after every legal black reply. |
 | A candidate creates a winning point but fails the existing defense or the follow-up check | The candidate receives no forcing preference. |
 | Several forcing defenses pass | Choose by distance to center, then row and column. |
-| No forcing defense passes, no forcing reply exists, or no complete defense exists | Existing choice is preserved. |
+| Neither side can win immediately and white has no two-point win or qualifying single-point defense | The CPU follows the existing defense order or falls back to the closest legal move to the center. |
 | CPU command and duplicate request | The command advances revision 21 to 22 and records exactly one white move. The duplicate adds no move. |
 | Selector timing | Benchmark results are reproducible and code review accepts the observed latency. |
 
@@ -86,16 +88,18 @@ If the preference needs to be reverted, restore the #98 ordering among effective
 - [x] 2026-11-26. Confirmed the regression fails against the merged selector and passes after implementation. Verified both tie-breakers and rejected candidates that fail the original defense or the follow-up check.
 - [x] 2026-11-26. Replayed the real CPU commands at revisions 21 and 23. Verified the responses and matching PostgreSQL history entries, and confirmed the duplicate revision 21 request left the newer pending turn intact.
 - [x] 2026-11-26. Accepted the implementation and measured responsiveness in code review. Passed 83 focused tests, documentation checks for 48 Markdown files and 28 checker tests, and the full Stop hook with Ruff formatting, lint, and 259 tests.
+- [x] 2026-11-26. The requester explicitly approved adding the two-winning-point priority to PR #100 after reviewing the move 36 replay.
+- [x] 2026-11-26. Confirmed the move 36 regression failed at `d2f7321` and passed with the new priority. Code review, Ruff, 86 focused tests, 262 full-suite tests, and the documentation checker passed.
 
 ## Outcomes and retrospective
 
 The reported position now produces white `(4, 9)` at revision 22. Black's sole block is `(3, 10)` at revision 23, and the real selector follows with white `(5, 9)` at revision 24. Direct move simulation confirmed no immediate black win or forcing black double-threat reply after the last move. Each accepted request appends one matching history entry. A duplicate CPU request at revision 21 adds none.
 
-The preference checks only the forced black block and the next white placement. Two immediate white winning points are still evaluated as an ordinary effective defense. In the existing white counter-win fixture, the new ranking therefore uses a qualifying single-point defense even though the ordinary defense would leave two winning points.
+The single-point defense preference checks only the forced black block and the next white placement. Game `7b99ad94-0506-4553-abe9-4e0c92fb0c98` exposed a higher-priority opportunity on move 36. The original forcing-defense implementation chose `(8, 9)` and left black a block at `(8, 11)`. The two-winning-point rule chooses `(7, 9)`, creating winning points at `(4, 6)` and `(9, 11)`. Direct simulation of all 189 legal black replies confirmed that white can win on its next turn. The [rules regression](../../../src/tests/game_service_test.py) replays this position.
 
 ### Selector timing
 
-Both versions ran in the same isolated app container and Python process. The baseline was `80ce833`. Each fixture used 20 warm-up calls and 500 timed calls per selector. Each sample alternated which selector ran first. The timings cover the selector call alone.
+These measurements cover the original forcing-defense change at `d2f7321`. The baseline was `80ce833`. Both versions ran in the same isolated app container and Python process. Each fixture used 20 warm-up calls and 500 timed calls per selector. Each sample alternated which selector ran first. The timings cover the selector call alone.
 
 | Position | Stones | Baseline median / p95 (ms) | Updated median / p95 (ms) |
 | --- | ---: | ---: | ---: |
@@ -105,7 +109,7 @@ Both versions ran in the same isolated app container and Python process. The bas
 
 The reported position had the highest updated p95 at 5.61 ms. The dense position had the largest p95 increase at 0.77 ms. Code review accepted the measured responsiveness within the CPU transaction.
 
-Run the following from the implementation checkout with its app container active.
+To reproduce the historical comparison, run the following from an isolated checkout at `d2f7321` with its app container active.
 
 ```bash
 git show 80ce833:src/app/domain/game/service/game_service.py > /tmp/gomoku-forcing-baseline.py

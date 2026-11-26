@@ -144,7 +144,7 @@ def apply_move(state: GameState, move: Move) -> GameState:
 
 
 def select_cpu_move(board: Board) -> Move | None:
-    """Prefer a win, an immediate block, a threat defense, then the center."""
+    """Prefer an immediate win, an immediate block, and a forcing win in order."""
     validate_board(board)
     candidate_board = [row.copy() for row in board]
     center = BOARD_SIZE // 2
@@ -172,21 +172,27 @@ def select_cpu_move(board: Board) -> Move | None:
                 fallback = Move(x, y)
     if block is not None or fallback is None:
         return block
-    return _find_threat_defense(board) or fallback
+    return _find_tactical_move(board) or fallback
 
 
-def _find_threat_defense(board: Board) -> Move | None:
-    """Find an effective defense, preferring a safe forcing move."""
+def _find_tactical_move(board: Board) -> Move | None:
+    """Find a forced win on white's next turn or an effective defense."""
     cells = [cell for row in board for cell in row]
-    if cells.count(1) < WIN_LENGTH - 2:
+    if all(cells.count(player) < WIN_LENGTH - 2 for player in (1, 2)):
         return None
 
     completions = _two_move_completions(cells)
+    white_wins = completions[2]
+    forced_win = min(_double_threats(white_wins), key=_center_priority, default=None)
+    if forced_win is not None:
+        # Black had no immediate win and can occupy at most one winning point.
+        y, x = divmod(forced_win, BOARD_SIZE)
+        return Move(x, y)
+
     threats = _double_threats(completions[1])
     if not threats:
         return None
 
-    white_wins = completions[2]
     forcing_candidates = sorted(
         (candidate for candidate, wins in white_wins.items() if len(wins) == 1),
         key=_center_priority,
