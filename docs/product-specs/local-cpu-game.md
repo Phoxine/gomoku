@@ -12,6 +12,8 @@ The new-game flow lets the player choose **Two players** or **Play against CPU**
 
 The page identifies the game mode, the player's color, and whose turn it is. On their turn, the player selects an empty intersection. After a valid player move, if the game is still in progress, the CPU makes one legal move on an empty intersection. The page shows that the CPU is taking its turn and prevents the player from placing another stone until the CPU move is resolved.
 
+The CPU takes an immediate win first or blocks an immediate black win when it can. When neither side can win right away, the CPU also looks for black moves that would create two separate winning intersections. If a white move can prevent black from forcing a win this way, the CPU uses that defense.
+
 The [local two-player rules](local-two-player-game.md) also apply. At least five consecutive stones of the same color win horizontally, vertically, or diagonally. A full board without a winner is a draw. The page announces a player win, a CPU win, or a draw as soon as it occurs. A winning final move takes precedence over a draw. The board accepts no more moves after the result, and a player move that ends the game triggers no CPU move.
 
 ## Resume a game
@@ -30,6 +32,7 @@ The first release offers one CPU difficulty and a fixed player color. Difficulty
 | --- | --- |
 | Start a CPU game | An empty board opens with the player assigned black, the CPU assigned white, and black to move. |
 | Make a legal move that leaves the game in progress | The player's stone appears. The page indicates the CPU's turn, then shows exactly one new white stone on a previously empty intersection. If the game continues, control returns to the player. |
+| Prepare a double threat that the CPU can still defend against | With no immediate win for either side, the CPU prevents black from creating two winning intersections on the next turn, or makes sure it can win before black uses them. |
 | Choose an occupied intersection on the player's turn | The board and turn stay the same, and the CPU makes no move. |
 | Select another intersection while the CPU is taking its turn | The selection places no stone. |
 | Complete five or more in a row as the player | The page shows a player win and the CPU makes no further move. |

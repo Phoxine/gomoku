@@ -15,6 +15,15 @@ from app.domain.game.state import (
 BOARD_SIZE = 15
 WIN_LENGTH = 5
 EMPTY = 0
+_WIN_DIRECTIONS = ((1, 0), (0, 1), (1, 1), (1, -1))
+_WIN_WINDOWS = tuple(
+    tuple((y + dy * step) * BOARD_SIZE + x + dx * step for step in range(WIN_LENGTH))
+    for y in range(BOARD_SIZE)
+    for x in range(BOARD_SIZE)
+    for dx, dy in _WIN_DIRECTIONS
+    if 0 <= x + dx * (WIN_LENGTH - 1) < BOARD_SIZE
+    and 0 <= y + dy * (WIN_LENGTH - 1) < BOARD_SIZE
+)
 
 
 def initialize_board() -> Board:
@@ -64,7 +73,7 @@ def place_stone(board: Board, x: int, y: int, player: int) -> bool:
 
 def has_won(board: Board, x: int, y: int, player: int) -> bool:
     """Return whether the stone at (x, y) completes five or more in a row."""
-    for dx, dy in ((1, 0), (0, 1), (1, 1), (1, -1)):
+    for dx, dy in _WIN_DIRECTIONS:
         count = 1
         for direction in (-1, 1):
             step = 1
@@ -133,7 +142,7 @@ def apply_move(state: GameState, move: Move) -> GameState:
 
 
 def select_cpu_move(board: Board) -> Move | None:
-    """Prefer a white win, a black threat, then the closest cell to center."""
+    """Prefer a win, an immediate block, a threat defense, then the center."""
     validate_board(board)
     candidate_board = [row.copy() for row in board]
     center = BOARD_SIZE // 2
@@ -159,4 +168,53 @@ def select_cpu_move(board: Board) -> Move | None:
             if distance < closest_distance:
                 closest_distance = distance
                 fallback = Move(x, y)
-    return block or fallback
+    if block is not None or fallback is None:
+        return block
+    return _find_threat_defense(board) or fallback
+
+
+def _find_threat_defense(board: Board) -> Move | None:
+    """Find the closest white move that stops every forcing black reply."""
+    cells = [cell for row in board for cell in row]
+    if cells.count(1) < WIN_LENGTH - 2:
+        return None
+
+    completions: dict[Player, dict[int, set[int]]] = {1: {}, 2: {}}
+    for window in _WIN_WINDOWS:
+        values = [cells[position] for position in window]
+        if values.count(EMPTY) != 2:
+            continue
+        # With no immediate win, the two new stones must both belong to
+        # one five-cell window. Either empty position can be played first.
+        for player in completions:
+            if values.count(player) == WIN_LENGTH - 2:
+                first, second = (
+                    position for position in window if cells[position] == EMPTY
+                )
+                completions[player].setdefault(first, set()).add(second)
+                completions[player].setdefault(second, set()).add(first)
+
+    threats = {reply: wins for reply, wins in completions[1].items() if len(wins) >= 2}
+    if not threats:
+        return None
+
+    center = BOARD_SIZE // 2
+    closest_distance = BOARD_SIZE**2
+    defense = None
+    for candidate, cell in enumerate(cells):
+        if cell != EMPTY:
+            continue
+        y, x = divmod(candidate, BOARD_SIZE)
+        distance = (x - center) ** 2 + (y - center) ** 2
+        if distance >= closest_distance:
+            continue
+        white_wins = completions[2].get(candidate, ())
+        if all(
+            candidate == reply
+            or len(black_wins - {candidate}) < 2
+            or any(win != reply for win in white_wins)
+            for reply, black_wins in threats.items()
+        ):
+            closest_distance = distance
+            defense = Move(x, y)
+    return defense

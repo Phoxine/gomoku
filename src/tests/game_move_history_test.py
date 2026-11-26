@@ -87,6 +87,40 @@ def verify_reconstruction(
     assert repository.read_verified_history(game_id) == history
 
 
+def verify_cpu_threat_defense() -> None:
+    game_id, _ = service.create_game(GameMode.CPU)
+    service.place_move(game_id, Move(7, 6), expected_revision=0)
+    with patch.object(
+        game_service, "select_cpu_move", side_effect=[Move(7, 7), Move(8, 7)]
+    ):
+        service.advance_cpu(game_id, expected_revision=1)
+        service.place_move(game_id, Move(6, 7), expected_revision=2)
+        service.advance_cpu(game_id, expected_revision=3)
+    pending = service.place_move(game_id, Move(5, 8), expected_revision=4)
+    before = repository.read_verified_history(game_id)
+    assert pending.revision == 5 and pending.current_player == 2
+    assert before.state == pending and len(before.moves) == 5
+
+    defense = Move(8, 5)
+    expected = game_service.apply_move(pending, defense)
+    response = Client().post(
+        f"/api/v1/games/{game_id}/cpu-move/",
+        {"expected_revision": pending.revision},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["revision"] == 6 and payload["board"] == expected.board
+    assert payload["current_player"] == 1
+
+    after = repository.read_verified_history(game_id)
+    assert after.state == service.get_game(game_id) == expected
+    assert len(after.moves) == len(before.moves) + 1
+    assert after.moves[:-1] == before.moves
+    recorded = after.moves[-1]
+    assert (recorded.move_number, recorded.move, recorded.player) == (6, defense, 2)
+
+
 def verify_legacy_suffix() -> UUID:
     board = game_service.initialize_board()
     board[3][:12] = [1, 2] * 6
@@ -189,6 +223,7 @@ try:
     for mode in GameMode:
         verify_reconstruction(mode, win, GameStatus.WON)
         verify_reconstruction(mode, draw_moves(), GameStatus.DRAW)
+    verify_cpu_threat_defense()
     verify_history_errors(verify_legacy_suffix())
     verify_finished_legacy_game()
 finally:
