@@ -20,7 +20,16 @@ select_cpu_move(board: Board) -> Move | None
 
 ### CPU move selection
 
-The selector takes a board for a pending white turn. It considers at most 225 intersections and returns a legal white move, or `None` when the board has no empty cell. It first looks for an immediate white win, then for an immediate black win to block. With no immediate win or threat, it prefers the smallest squared distance to the center `(7, 7)`. Ties among wins, blocks, or equally distant fallback moves use ascending row and then column. The selector uses the existing win logic and leaves the input board unchanged.
+`select_cpu_move` takes a board for a pending white turn and returns a legal white move, or `None` when the board has no empty cell. It uses the same five-or-more win rule as `apply_move` and leaves the input board unchanged.
+
+1. Take an immediate white win if available. Otherwise, block an immediate black winning intersection if one exists. If several moves qualify at either step, choose the first in ascending row and column order.
+2. With neither immediate win available, look one black reply ahead. A reply threatens a forced loss if it leaves at least two distinct empty intersections where black could win on its next turn and leaves white no immediate win. These intersections may come from gapped or crossing patterns. An intersection that completes several lines counts once.
+3. If a forcing reply exists, look for a white move after which no legal black reply can still force that loss. A defense can occupy the reply, remove enough black winning intersections, or leave white an immediate win after the reply. Rank effective defenses by squared distance to the center `(7, 7)`, then ascending row and column.
+4. If there is no forcing reply or no white move defends against all of them, choose the closest legal intersection to the center using the same ordering.
+
+The lookahead examines consecutive groups of five intersections on the 15×15 board in the same four directions as the win check. Once immediate wins are ruled out, a win in two placements must use a group with three stones of the same color and two empty intersections. Either empty intersection can be played first, and the other is then a winning intersection for that color. The selector collects these winning intersections by first placement, using sets to count each coordinate once.
+
+A white defense can only reduce black's options, so the selector rechecks the black replies that had at least two winning intersections on the original board. It excludes replies and winning intersections occupied by the defense. If a black reply still has two winning intersections, the selector checks whether the defense leaves white a winning intersection that the black reply did not occupy.
 
 ## State Transition Contract
 

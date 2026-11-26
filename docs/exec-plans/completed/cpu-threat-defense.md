@@ -1,6 +1,6 @@
 # CPU Threat Defense Execution Plan
 
-**Status** — Draft for review
+**Status** — Completed
 
 ## Goal and scope
 
@@ -18,7 +18,7 @@ Replay these first five moves on a 15×15 board using zero-based `(x, y)` coordi
 | 4 | White | `(8, 7)` |
 | 5 | Black | `(5, 8)` |
 
-The current selector plays `(7, 8)` on move 6. Black then plays `(4, 9)` and can win next at either `(8, 5)` or `(3, 10)`. White blocks `(8, 5)` on move 8 and black wins at `(3, 10)`. A white move such as `(4, 9)` or `(8, 5)` at move 6 prevents that double threat.
+The original selector plays `(7, 8)` on move 6. Black then plays `(4, 9)` and can win next at either `(8, 5)` or `(3, 10)`. White blocks `(8, 5)` on move 8 and black wins at `(3, 10)`. A white move such as `(4, 9)` or `(8, 5)` at move 6 prevents that double threat.
 
 ## Proposed selection
 
@@ -81,10 +81,75 @@ If a deployed strategy change needs to be reverted, restore the previously verif
 ## Progress and decisions
 
 - [x] 2026-11-26. Replayed the reported CPU game and confirmed all four white moves matched the current selector. Identified move 6 as a defensive opportunity.
-- [ ] Approve the feature documentation and selection design.
-- [ ] Reproduce the failure, implement threat defense, and record baseline and new timing.
-- [ ] Verify the real CPU command and complete feature delivery.
+- [x] 2026-11-26. Drafted the [CPU selection design](../../domains/game/context-designs.md#cpu-move-selection) and updated the [CPU product specification](../../product-specs/local-cpu-game.md#play-a-turn). Reviewed the CPU command contract for compatibility with the proposed selector.
+- [x] 2026-11-26. The requester explicitly approved the English feature documentation and CPU selection design before implementation.
+- [x] 2026-11-26. Confirmed the regression failed on the old selector and passed after implementing defense. Compared the window-based lookahead with direct reply simulation for the reported game and representative gapped, crossing, and counter-win positions.
+- [x] 2026-11-26. Verified the real CPU command and the recorded white move in PostgreSQL.
+- [x] 2026-11-26. Accepted implementation and measured responsiveness in code review. Passed the 78 focused tests, documentation checks for 47 Markdown files and 28 checker tests, and the full Stop hook with Ruff formatting, lint, and 254 tests.
 
 ## Outcomes and retrospective
 
-Implementation and acceptance are pending. Record the selected defense in the regression position, measured latency, reviewed limitations, and final validation results here.
+The old selector plays `(7, 8)` at revision 5. The new selector chooses `(8, 5)`, the effective defense closest to the center. The real CPU command returns revision 6 and the resulting board. The verified history retains its first five entries and appends exactly one white move at `(8, 5)`.
+
+The selector checks one black reply ahead. A position that already gives black more than one immediate win still uses the first block in board order. When no move defends against all projected double threats, the selector falls back to its center ordering.
+
+### Selector timing
+
+Both selectors ran in the same isolated app container and Python process. The baseline was `a345a81`. Each position had 20 warm-up calls and 500 measured calls per selector. The order alternated between samples. Elapsed time covers the selector call alone.
+
+| Position | Stones | Baseline median / p95 (ms) | New median / p95 (ms) |
+| --- | ---: | ---: | ---: |
+| Sparse opening | 1 | 1.58 / 2.52 | 1.60 / 2.75 |
+| Midgame with diagonal threat | 15 | 1.50 / 2.40 | 1.98 / 2.96 |
+| Dense board with multiple threats | 135 | 0.73 / 1.32 | 1.24 / 2.19 |
+
+The midgame fixture had the highest new p95 at 2.96 ms. The dense fixture had the largest p95 increase at 0.87 ms. Code review accepted the measured responsiveness for selection within the existing CPU transaction. These measurements cover selection only.
+
+Reproduce the measurements from the feature worktree while its app container is running.
+
+```bash
+git show a345a81:src/app/domain/game/service/game_service.py > /tmp/gomoku-cpu-baseline.py
+cat > /tmp/gomoku-cpu-timing.py <<'PY'
+from statistics import median, quantiles
+from time import perf_counter_ns
+
+from app.domain.game.service.game_service import select_cpu_move as new_selector
+
+old_selector = select_cpu_move
+sparse = initialize_board()
+sparse[6][7] = 1
+midgame = initialize_board()
+for x, y, player in [
+    (7, 6, 1), (7, 7, 2), (6, 7, 1), (8, 7, 2), (5, 8, 1),
+    (2, 1, 2), (9, 3, 1), (12, 2, 2), (0, 6, 1), (13, 8, 2),
+    (5, 12, 1), (2, 11, 2), (14, 13, 1), (10, 12, 2), (12, 14, 1),
+]:
+    midgame[y][x] = player
+
+dense = initialize_board()
+for y in range(7, 15):
+    for x in range(15):
+        dense[y][x] = 1 if (x + 2 * y) % 4 < 2 else 2
+for y in (0, 3):
+    for x in (2, 3, 5, 9, 10, 12):
+        dense[y][x] = 1
+for x in (0, 2, 4):
+    dense[5][x] = 2
+
+for name, board in [("sparse", sparse), ("midgame", midgame), ("dense", dense)]:
+    print(name, "stones", sum(cell != 0 for row in board for cell in row))
+    selectors = (old_selector, new_selector)
+    times = ([], [])
+    for _ in range(20):
+        for select in selectors:
+            select(board)
+    for sample in range(500):
+        for index in (sample % 2, 1 - sample % 2):
+            start = perf_counter_ns()
+            selectors[index](board)
+            times[index].append((perf_counter_ns() - start) / 1_000_000)
+    for select, samples in zip(selectors, times, strict=True):
+        print(select(board), f"{median(samples):.2f}", f"{quantiles(samples, n=100)[94]:.2f}")
+PY
+cat /tmp/gomoku-cpu-baseline.py /tmp/gomoku-cpu-timing.py | bash scripts/compose.sh exec -T app uv run python -
+```

@@ -9,7 +9,7 @@ from app.domain.game.service.game_service import (
     select_cpu_move,
     validate_move,
 )
-from app.domain.game.state import Move
+from app.domain.game.state import Board, Move, Player
 
 
 def test_initialize_board_returns_empty_15_by_15_board() -> None:
@@ -130,6 +130,113 @@ def test_cpu_blocks_the_first_winning_black_move_in_board_order() -> None:
     board[1][:4] = [1, 1, 1, 1]
 
     assert select_cpu_move(board) == Move(0, 0)
+
+
+def test_cpu_blocks_a_single_immediate_black_win_before_defending_elsewhere() -> None:
+    board = initialize_board()
+    board[0][:4] = [1, 1, 1, 1]
+    board[7][4:7] = [1, 1, 1]
+
+    assert select_cpu_move(board) == Move(4, 0)
+
+
+def test_cpu_defends_before_black_can_create_two_winning_moves() -> None:
+    board = initialize_board()
+    for x, y, player in [(7, 6, 1), (7, 7, 2), (6, 7, 1), (8, 7, 2), (5, 8, 1)]:
+        place_stone(board, x, y, player)
+    original = [row.copy() for row in board]
+
+    assert select_cpu_move(board) == Move(8, 5)
+    assert board == original
+
+    assert _black_has_forcing_reply(board)
+    board[5][8] = 2
+    assert not _black_has_forcing_reply(board)
+
+
+def _winning_moves(board: Board, player: Player) -> set[Move]:
+    wins = set()
+    for y, row in enumerate(board):
+        for x, cell in enumerate(row):
+            if cell != EMPTY:
+                continue
+            board[y][x] = player
+            if has_won(board, x, y, player):
+                wins.add(Move(x, y))
+            board[y][x] = EMPTY
+    return wins
+
+
+def _black_has_forcing_reply(board: Board) -> bool:
+    """Simulate every black reply without using the selector's window pruning."""
+    for y, row in enumerate(board):
+        for x, cell in enumerate(row):
+            if cell != EMPTY:
+                continue
+            board[y][x] = 1
+            forces_win = len(_winning_moves(board, 1)) >= 2 and not _winning_moves(
+                board, 2
+            )
+            board[y][x] = EMPTY
+            if forces_win:
+                return True
+    return False
+
+
+@pytest.mark.parametrize(
+    "black,white,expected",
+    [
+        pytest.param([(4, 7), (5, 7), (7, 7)], [], Move(6, 7), id="gapped-row-tie"),
+        pytest.param(
+            [(2, 4), (3, 4), (6, 4), (4, 1), (4, 2), (4, 5)],
+            [],
+            Move(5, 4),
+            id="crossing",
+        ),
+        pytest.param(
+            [(2, 1), (3, 1), (5, 1)],
+            [(4, 7), (5, 7), (6, 7)],
+            Move(7, 7),
+            id="white-counter-win",
+        ),
+    ],
+)
+def test_cpu_defenses_agree_with_reply_simulation(
+    black: list[tuple[int, int]], white: list[tuple[int, int]], expected: Move
+) -> None:
+    board = initialize_board()
+    for x, y in black:
+        board[y][x] = 1
+    for x, y in white:
+        board[y][x] = 2
+
+    assert not _winning_moves(board, 1)
+    assert not _winning_moves(board, 2)
+    assert _black_has_forcing_reply(board)
+    assert select_cpu_move(board) == expected
+    board[expected.y][expected.x] = 2
+    assert not _black_has_forcing_reply(board)
+
+
+def test_cpu_does_not_count_one_winning_move_twice_for_overlapping_lines() -> None:
+    board = initialize_board()
+    board[0][:8] = [0, 2, 1, 1, 0, 1, 0, 1]
+    board[0][4] = 1
+    assert _winning_moves(board, 1) == {Move(6, 0)}
+    board[0][4] = EMPTY
+
+    assert not _black_has_forcing_reply(board)
+    assert select_cpu_move(board) == Move(7, 7)
+
+
+def test_cpu_uses_center_fallback_when_no_defense_blocks_both_threats() -> None:
+    board = initialize_board()
+    for y in (1, 13):
+        board[y][2:6] = [1, 1, 0, 1]
+
+    assert not _winning_moves(board, 1)
+    assert _black_has_forcing_reply(board)
+    assert select_cpu_move(board) == Move(7, 7)
 
 
 def test_cpu_fallback_prefers_center_and_breaks_distance_ties_by_row_then_column() -> (
