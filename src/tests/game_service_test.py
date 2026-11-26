@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 import pytest
 
 from app.domain.game.service.game_service import (
@@ -285,6 +287,10 @@ def test_cpu_orders_two_winning_points_after_immediate_blocks(
 
 
 def _black_has_forcing_reply(board: Board) -> bool:
+    return next(_black_forcing_replies(board), None) is not None
+
+
+def _black_forcing_replies(board: Board) -> Iterator[Move]:
     """Simulate every black reply without using the selector's window pruning."""
     for y, row in enumerate(board):
         for x, cell in enumerate(row):
@@ -296,8 +302,55 @@ def _black_has_forcing_reply(board: Board) -> bool:
             )
             board[y][x] = EMPTY
             if forces_win:
-                return True
-    return False
+                yield Move(x, y)
+
+
+def test_cpu_reduces_forcing_replies_in_reported_move_26() -> None:
+    moves = [
+        (7, 7),
+        (7, 6),
+        (8, 7),
+        (6, 7),
+        (8, 5),
+        (7, 8),
+        (8, 8),
+        (8, 6),
+        (6, 6),
+        (5, 5),
+        (7, 5),
+        (6, 8),
+        (9, 5),
+        (6, 5),
+        (8, 4),
+        (5, 7),
+        (9, 3),
+        (10, 2),
+        (10, 5),
+        (11, 5),
+        (9, 4),
+        (9, 6),
+        (10, 6),
+        (7, 3),
+        (10, 4),
+    ]
+    board = initialize_board()
+    for turn, (x, y) in enumerate(moves):
+        assert not place_stone(board, x, y, 1 if turn % 2 == 0 else 2)
+    assert not _winning_moves(board, 1)
+    assert not _winning_moves(board, 2)
+    original = [row.copy() for row in board]
+
+    assert select_cpu_move(board) == Move(7, 4)
+    assert board == original
+
+    for move, expected in (
+        (Move(9, 7), {Move(7, 4), Move(11, 4), Move(10, 7)}),
+        (Move(7, 4), {Move(10, 7)}),
+        (Move(11, 4), {Move(10, 7)}),
+    ):
+        after = [row.copy() for row in board]
+        assert not place_stone(after, move.x, move.y, 2)
+        assert set(_black_forcing_replies(after)) == expected
 
 
 def test_cpu_breaks_forcing_defense_ties_by_column_in_the_same_row() -> None:
@@ -390,14 +443,14 @@ def test_cpu_does_not_count_one_winning_move_twice_for_overlapping_lines() -> No
     assert select_cpu_move(board) == Move(7, 7)
 
 
-def test_cpu_uses_center_fallback_when_no_defense_blocks_both_threats() -> None:
+def test_cpu_breaks_partial_defense_ties_by_center_then_row() -> None:
     board = initialize_board()
     for y in (1, 13):
         board[y][2:6] = [1, 1, 0, 1]
 
     assert not _winning_moves(board, 1)
     assert _black_has_forcing_reply(board)
-    assert select_cpu_move(board) == Move(7, 7)
+    assert select_cpu_move(board) == Move(6, 1)
 
 
 def test_cpu_fallback_prefers_center_and_breaks_distance_ties_by_row_then_column() -> (

@@ -1,7 +1,8 @@
 """Framework-agnostic Gomoku game rules."""
 
-from collections.abc import Collection
+from collections.abc import Collection, Iterator
 from dataclasses import replace
+from itertools import islice
 
 from app.domain.game.state import (
     Board,
@@ -176,7 +177,7 @@ def select_cpu_move(board: Board) -> Move | None:
 
 
 def _find_tactical_move(board: Board) -> Move | None:
-    """Find a forced win on white's next turn or an effective defense."""
+    """Find a forced win on white's next turn or minimize black's threats."""
     cells = [cell for row in board for cell in row]
     if all(cells.count(player) < WIN_LENGTH - 2 for player in (1, 2)):
         return None
@@ -205,14 +206,22 @@ def _find_tactical_move(board: Board) -> Move | None:
             y, x = divmod(candidate, BOARD_SIZE)
             return Move(x, y)
 
-    for candidate in sorted(
+    candidates = sorted(
         (position for position, cell in enumerate(cells) if cell == EMPTY),
         key=_center_priority,
-    ):
-        if _stops_threats(candidate, white_wins.get(candidate, ()), threats):
-            y, x = divmod(candidate, BOARD_SIZE)
-            return Move(x, y)
-    return None
+    )
+    best = candidates[0]
+    fewest = len(threats)
+    for candidate in candidates:
+        replies = _remaining_threats(candidate, white_wins.get(candidate, ()), threats)
+        # Candidates already follow the tie-break order, so a tie cannot improve best.
+        remaining = sum(1 for _ in islice(replies, fewest))
+        if remaining < fewest:
+            best, fewest = candidate, remaining
+            if fewest == 0:
+                break
+    y, x = divmod(best, BOARD_SIZE)
+    return Move(x, y)
 
 
 def _center_priority(position: int) -> tuple[int, int]:
@@ -247,11 +256,19 @@ def _double_threats(completions: dict[int, set[int]]) -> dict[int, set[int]]:
 def _stops_threats(
     candidate: int, white_wins: Collection[int], threats: dict[int, set[int]]
 ) -> bool:
-    return all(
-        candidate == reply
-        or len(black_wins - {candidate}) < 2
-        or any(win != reply for win in white_wins)
+    return next(_remaining_threats(candidate, white_wins, threats), None) is None
+
+
+def _remaining_threats(
+    candidate: int, white_wins: Collection[int], threats: dict[int, set[int]]
+) -> Iterator[int]:
+    """Yield each black reply that still creates an unanswerable double threat."""
+    return (
+        reply
         for reply, black_wins in threats.items()
+        if reply != candidate
+        and (len(black_wins) > 2 or candidate not in black_wins)
+        and all(win == reply for win in white_wins)
     )
 
 
