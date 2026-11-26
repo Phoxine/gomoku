@@ -10,7 +10,7 @@ The `games` table stores each game. Its model and initial migration are in `app.
 | `status` | VARCHAR(16) | No | `in_progress` | None | Must be `in_progress`, `won`, or `draw`. | Game status. |
 | `winner` | SMALLINT | Yes | `null` | None | Must be `1` or `2` for a won game and null otherwise. | Winning player, if any. |
 | `mode` | VARCHAR(16) | No | `two_player` | `two_player` | `game_mode_valid` permits only `two_player` and `cpu`. | Turn ownership, chosen at creation and immutable through game commands. |
-| `history_start_revision` (proposed) | SMALLINT | No | `0` | None | `game_history_start_revision_valid` permits `0` through `225`. | Fixed revision at which move recording began for this game. |
+| `history_start_revision` | SMALLINT | No | `0` | None | `game_history_start_revision_valid` permits `0` through `225`. | Fixed revision at which move recording began for this game. |
 | `created_at` | TIMESTAMP WITH TIME ZONE | No | Set on creation | None | None | Creation time. |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | No | Set on save | None | None | Last update time. |
 
@@ -26,7 +26,7 @@ Check constraints enforce the player, status, winner, and status/winner consiste
 
 The PostgreSQL board constraint applies to all database writes and rejects decimal cells such as `1.0`, consistent with the game service's integer-cell validation.
 
-## Move history (proposed)
+## Move history
 
 The `game_moves` table stores one row per accepted stone. Move numbers are one-based and equal the number of occupied cells after the move. Coordinates use `board[y][x]`.
 
@@ -47,7 +47,7 @@ The `game_moves` table stores one row per accepted stone. Move numbers are one-b
 
 The composite indexes cover lookups by `game_id`. Django cascades deletion of a game to its moves. The PostgreSQL foreign key uses `NO ACTION`, so a direct SQL delete must remove dependent rows within the same transaction.
 
-Pause and drain all game writers before the migration. Backfill `history_start_revision` from the occupied-cell count of each existing board, preserving the saved game state and timestamps. The migration inserts no move rows. A game with 12 stones starts recording at move 13. New games start at revision zero, and fixtures created with stones already on the board specify their starting revision explicitly.
+Pause and drain all game writers before applying the [move history migration](../../../src/app/domain/game/migrations/0003_game_move_history.py). It backfills `history_start_revision` from the occupied-cell count of each existing board, preserving the saved game state and timestamps. The migration inserts no move rows. A game with 12 stones starts recording at move 13. New empty games start at revision zero. The repository uses the supplied board's occupied-cell count on creation, and fixtures that insert nonempty boards directly specify their starting revision explicitly.
 
 The migration writes existing rows and takes schema locks. After activation, an older writer's insert would omit the required boundary and fail. Its board update could still succeed and leave a gap in the recorded moves. Keep writers paused through verification and resume with history-aware writers only. If the application rolls back to a version without history support after recording begins, keep game writes paused and retain the stored history and boundary.
 

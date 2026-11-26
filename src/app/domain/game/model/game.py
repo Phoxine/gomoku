@@ -29,6 +29,7 @@ class Game(models.Model):
         default=GameMode.TWO_PLAYER.value,
         db_default=GameMode.TWO_PLAYER.value,
     )
+    history_start_revision = models.SmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -36,6 +37,10 @@ class Game(models.Model):
         db_table = "games"
         constraints = [
             board_constraint(),
+            models.CheckConstraint(
+                condition=Q(history_start_revision__range=(0, 225)),
+                name="game_history_start_revision_valid",
+            ),
             models.CheckConstraint(
                 condition=Q(mode__in=tuple(mode.value for mode in GameMode)),
                 name="game_mode_valid",
