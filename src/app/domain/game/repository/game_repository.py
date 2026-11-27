@@ -7,7 +7,15 @@ from django.db import transaction
 
 from app.domain.game.model.game import Game
 from app.domain.game.model.game_move import GameMove
-from app.domain.game.state import GameMode, GameState, GameStatus, Move, Player
+from app.domain.game.state import (
+    ForbiddenMovePolicy,
+    GameMode,
+    GameResultReason,
+    GameState,
+    GameStatus,
+    Move,
+    Player,
+)
 
 
 class GameNotFoundError(LookupError):
@@ -43,6 +51,12 @@ class GameRepository:
             status=GameStatus(game.status),
             winner=game.winner,
             mode=GameMode(game.mode),
+            forbidden_move_policy=ForbiddenMovePolicy(game.forbidden_move_policy),
+            result_reason=(
+                GameResultReason(game.result_reason)
+                if game.result_reason is not None
+                else None
+            ),
         )
 
     def create(self, state: GameState) -> tuple[UUID, GameState]:
@@ -52,6 +66,8 @@ class GameRepository:
             status=state.status.value,
             winner=state.winner,
             mode=state.mode.value,
+            forbidden_move_policy=state.forbidden_move_policy,
+            result_reason=state.result_reason,
             history_start_revision=state.revision,
         )
         return game.pk, self._state(game)
@@ -76,8 +92,16 @@ class GameRepository:
         game.current_player = state.current_player
         game.status = state.status.value
         game.winner = state.winner
+        game.result_reason = state.result_reason
         game.save(
-            update_fields=["board", "current_player", "status", "winner", "updated_at"]
+            update_fields=[
+                "board",
+                "current_player",
+                "status",
+                "winner",
+                "result_reason",
+                "updated_at",
+            ]
         )
         return self._state(game)
 

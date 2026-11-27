@@ -20,11 +20,21 @@
       <div class="status-label">THE GAME <span>01 / 01</span></div>
       <div class="turn-card" id="turn-card"><span class="status-stone" id="status-stone"></span><div><span class="card-caption" id="card-caption">READY TO PLAY</span><strong id="status-text" role="status" aria-live="polite" aria-atomic="true">Start a new game</strong></div></div>
       <p class="helper" id="status-help">Black plays first. Good luck!</p>
+      <button type="button" class="result-details" id="result-details" hidden>View result details</button>
+      <p class="active-policy" id="active-policy" hidden></p>
       <label class="mode-label" for="game-mode">New game mode</label>
       <select id="game-mode" class="mode-select">
         <option value="two_player">Two players</option>
         <option value="cpu">Play against CPU</option>
       </select>
+      <label class="policy-toggle"><input type="checkbox" id="enable-forbidden-moves"> Enable black forbidden moves</label>
+      <div id="forbidden-options" hidden>
+        <label class="mode-label" for="forbidden-consequence">When black plays a forbidden move</label>
+        <select id="forbidden-consequence" class="mode-select">
+          <option value="warn">Warn and retry</option>
+          <option value="loss">Immediate loss</option>
+        </select>
+      </div>
       <button type="button" class="new-game" id="new-game">New game <span aria-hidden="true">↗</span></button>
       <div class="restore"><label for="game-id">HAVE A GAME ID?</label><div class="restore-row"><input id="game-id" type="text" placeholder="Paste game ID" autocomplete="off" spellcheck="false"><button id="load-game" type="button" aria-label="Load game">→</button></div><p>Enter a game ID to restore a game.</p></div>
       <p class="message" id="message" role="status" aria-live="polite"></p>
@@ -38,6 +48,14 @@
       <div class="game-meta"><span>GAME ID</span><code id="current-id">—</code><button type="button" id="copy-id" disabled>Copy ID ↗</button><button type="button" id="refresh-game" disabled>Refresh ↻</button></div>
     </section>
   </main>
+  <dialog class="forbidden-dialog" id="forbidden-dialog" aria-labelledby="forbidden-title" aria-describedby="forbidden-explanation forbidden-next">
+    <h2 id="forbidden-title"></h2>
+    <p id="forbidden-explanation"></p>
+    <p id="forbidden-next"></p>
+    <form method="dialog">
+      <button type="submit" id="forbidden-dismiss" autofocus></button>
+    </form>
+  </dialog>
   <footer><span>GOOD GAMES ARE MADE TOGETHER.</span><span>GOMOKU &nbsp; © &nbsp; PLAY A LITTLE MORE</span></footer>
 </body>
 </html>

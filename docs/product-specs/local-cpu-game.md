@@ -12,9 +12,11 @@ The new-game flow lets the player choose **Two players** or **Play against CPU**
 
 The page identifies the game mode, the player's color, and whose turn it is. On their turn, the player selects an empty intersection. After a valid player move, if the game is still in progress, the CPU makes one legal move on an empty intersection. The page shows that the CPU is taking its turn and prevents the player from placing another stone until the CPU move is resolved.
 
+Hovering over an empty intersection where the player can place a stone previews a translucent black stone. While the CPU takes its white turn, the board shows no hover preview.
+
 The CPU takes an immediate win first or blocks an immediate black win when it can. When neither side can win right away, the CPU prefers a move that creates two or more separate white winning points. Black can cover at most one before white moves again. If white has no such move, the CPU looks for black moves that would create two separate winning intersections. Among moves that defend against all such threats, it prefers a move that creates one white winning point, forces black to block it, and leaves white able to defend again, win, or draw after that block. When every defense leaves a possible double threat, the CPU chooses a move that leaves black the fewest ways to create one.
 
-The [local two-player rules](local-two-player-game.md) also apply. At least five consecutive stones of the same color win horizontally, vertically, or diagonally. A full board without a winner is a draw. The page announces a player win, a CPU win, or a draw as soon as it occurs. A winning final move takes precedence over a draw. The board accepts no more moves after the result, and a player move that ends the game triggers no CPU move.
+The [local two-player rules](local-two-player-game.md) also apply. Under the default rules, at least five consecutive stones of the same color win horizontally, vertically, or diagonally. A full board without a winner is a draw. The page announces a player win, a CPU win, or a draw as soon as it occurs. A winning final move takes precedence over a draw. The board accepts no more moves after the result, and a player move that ends the game triggers no CPU move.
 
 ## Resume a game
 
@@ -25,6 +27,10 @@ If the CPU turn fails, the page explains the interruption and lets the player re
 ## First release
 
 The first release offers one CPU difficulty and a fixed player color. Difficulty selection, choosing a color, undo, and offline play are deferred. The two-player mode remains available from the same page.
+
+## Optional black forbidden moves
+
+CPU games offer the same black forbidden-move settings and dialogs as local two-player games. **Warn and retry** opens a dialog and leaves the player's turn active after dismissal. **Immediate loss** opens the result dialog and ends the game. Neither action triggers a CPU placement. When choosing a move, the CPU accounts for black's legal winning points and defensive replies under the saved setting. If the CPU leaves black no legal move under Warn and retry, the result is saved with that white move and displayed on reload. [Black forbidden-move settings and dialogs](local-two-player-game.md#optional-black-forbidden-moves)
 
 ## Acceptance criteria
 
@@ -38,9 +44,9 @@ The first release offers one CPU difficulty and a fixed player color. Difficulty
 | Prepare a position where every white move leaves black a way to create a double threat | With no higher-priority move available, the CPU leaves black the fewest replies that would create a double threat without leaving white an immediate win. |
 | Choose an occupied intersection on the player's turn | The board and turn stay the same, and the CPU makes no move. |
 | Select another intersection while the CPU is taking its turn | The selection places no stone. |
-| Complete five or more in a row as the player | The page shows a player win and the CPU makes no further move. |
+| Complete five or more in a row as the player with forbidden moves Off | The page shows a player win and the CPU makes no further move. |
 | Complete five or more in a row as the CPU | The page shows a CPU win and the board stops accepting moves. |
-| Fill the last empty intersection | The game ends immediately. The final move wins if it completes a line of five or more. Otherwise, the page shows a draw. |
+| Fill the last empty intersection with forbidden moves Off | The game ends immediately. The final move wins if it completes a line of five or more. Otherwise, the page shows a draw. |
 | Refresh or load a saved CPU game by ID | The game opens in CPU mode with its saved board and result or next turn. A pending CPU turn completes once, even if the game is opened twice or the turn is retried. |
 | Interrupt a CPU turn after the player's move is saved | The page offers a retry. When the game continues, the player's stone remains and exactly one CPU response is recorded. |
 | Copy a CPU game's ID, start another game, and reopen the first game by ID | The first game returns with its saved board and mode. The displayed ID can be copied manually if clipboard access is blocked. |

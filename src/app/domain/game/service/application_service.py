@@ -7,6 +7,7 @@ from django.db import transaction
 from app.domain.game.repository.game_repository import GameNotFoundError, GameRepository
 from app.domain.game.service import game_service
 from app.domain.game.state import (
+    ForbiddenMovePolicy,
     GameMode,
     GameState,
     GameStatus,
@@ -23,11 +24,17 @@ class GameApplicationService:
         self.repository = repository if repository is not None else GameRepository()
 
     def create_game(
-        self, mode: GameMode = GameMode.TWO_PLAYER
+        self,
+        mode: GameMode = GameMode.TWO_PLAYER,
+        forbidden_move_policy: ForbiddenMovePolicy = ForbiddenMovePolicy.OFF,
     ) -> tuple[UUID, GameState]:
         return self.repository.create(
             GameState(
-                game_service.initialize_board(), 1, GameStatus.IN_PROGRESS, mode=mode
+                game_service.initialize_board(),
+                1,
+                GameStatus.IN_PROGRESS,
+                mode=mode,
+                forbidden_move_policy=forbidden_move_policy,
             )
         )
 
@@ -60,7 +67,9 @@ class GameApplicationService:
             ):
                 return state
 
-            move = game_service.select_cpu_move(state.board)
+            move = game_service.select_cpu_move(
+                state.board, state.forbidden_move_policy
+            )
             if move is None:
                 raise ValueError("Pending CPU turn has no legal move")
             return self._apply_and_save_move(game_id, state, move)

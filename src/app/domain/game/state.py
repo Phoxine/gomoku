@@ -22,6 +22,25 @@ class GameMode(StrEnum):
     CPU = "cpu"
 
 
+class ForbiddenMovePolicy(StrEnum):
+    OFF = "off"
+    WARN = "warn"
+    LOSS = "loss"
+
+
+class ForbiddenMoveReason(StrEnum):
+    OVERLINE = "overline"
+    DOUBLE_FOUR = "double_four"
+    DOUBLE_THREE = "double_three"
+
+
+class GameResultReason(StrEnum):
+    OVERLINE = ForbiddenMoveReason.OVERLINE
+    DOUBLE_FOUR = ForbiddenMoveReason.DOUBLE_FOUR
+    DOUBLE_THREE = ForbiddenMoveReason.DOUBLE_THREE
+    NO_LEGAL_BLACK_MOVE = "no_legal_black_move"
+
+
 @dataclass(slots=True)
 class GameState:
     """Mutable rule-relevant game data, without persistence metadata."""
@@ -31,6 +50,8 @@ class GameState:
     status: GameStatus
     winner: Player | None = None
     mode: GameMode = GameMode.TWO_PLAYER
+    forbidden_move_policy: ForbiddenMovePolicy = ForbiddenMovePolicy.OFF
+    result_reason: GameResultReason | None = None
 
     @property
     def revision(self) -> int:
@@ -56,6 +77,7 @@ class IllegalMoveReason(StrEnum):
     NOT_HUMAN_TURN = "not_human_turn"
     STALE_REVISION = "stale_revision"
     NOT_CPU_GAME = "not_cpu_game"
+    FORBIDDEN_MOVE = "forbidden_move"
 
 
 class IllegalMoveError(ValueError):
@@ -64,3 +86,9 @@ class IllegalMoveError(ValueError):
     def __init__(self, reason: IllegalMoveReason) -> None:
         self.reason = reason
         super().__init__(reason.value)
+
+
+class ForbiddenMoveError(IllegalMoveError):
+    def __init__(self, forbidden_reason: ForbiddenMoveReason) -> None:
+        self.forbidden_reason = forbidden_reason
+        super().__init__(IllegalMoveReason.FORBIDDEN_MOVE)

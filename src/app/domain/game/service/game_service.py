@@ -7,6 +7,10 @@ from itertools import islice
 from app.domain.game.state import (
     Board,
     Cell,
+    ForbiddenMoveError,
+    ForbiddenMovePolicy,
+    ForbiddenMoveReason,
+    GameResultReason,
     GameState,
     GameStatus,
     IllegalMoveError,
@@ -76,22 +80,118 @@ def place_stone(board: Board, x: int, y: int, player: int) -> bool:
 
 def has_won(board: Board, x: int, y: int, player: int) -> bool:
     """Return whether the stone at (x, y) completes five or more in a row."""
-    for dx, dy in _WIN_DIRECTIONS:
-        count = 1
-        for direction in (-1, 1):
-            step = 1
-            while True:
-                next_x = x + dx * step * direction
-                next_y = y + dy * step * direction
-                if not (0 <= next_x < BOARD_SIZE and 0 <= next_y < BOARD_SIZE):
-                    break
-                if board[next_y][next_x] != player:
-                    break
-                count += 1
-                step += 1
-        if count >= WIN_LENGTH:
-            return True
-    return False
+    return any(
+        _line_length(board, x, y, dx, dy, player) >= WIN_LENGTH
+        for dx, dy in _WIN_DIRECTIONS
+    )
+
+
+def _line_length(board: Board, x: int, y: int, dx: int, dy: int, player: int) -> int:
+    count = 1
+    for direction in (-1, 1):
+        next_x, next_y = x + dx * direction, y + dy * direction
+        while (
+            0 <= next_x < BOARD_SIZE
+            and 0 <= next_y < BOARD_SIZE
+            and board[next_y][next_x] == player
+        ):
+            count += 1
+            next_x += dx * direction
+            next_y += dy * direction
+    return count
+
+
+def _black_axis(board: Board, move: Move, dx: int, dy: int) -> tuple[Cell, ...]:
+    # Five points on each side include the cells beyond both possible ends
+    # of a five through the pivot. Treat the edge like a white stone.
+    cells: list[Cell] = []
+    for offset in range(-WIN_LENGTH, WIN_LENGTH + 1):
+        x, y = move.x + offset * dx, move.y + offset * dy
+        cells.append(board[y][x] if 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE else 2)
+    return tuple(cells)
+
+
+def _black_outcome(board: Board, move: Move) -> tuple[bool, ForbiddenMoveReason | None]:
+    """Evaluate a black stone already placed on a temporary board."""
+    lengths = [
+        _line_length(board, move.x, move.y, dx, dy, 1) for dx, dy in _WIN_DIRECTIONS
+    ]
+    if WIN_LENGTH in lengths:
+        return True, None
+    if max(lengths) > WIN_LENGTH:
+        return False, ForbiddenMoveReason.OVERLINE
+
+    axes = [_black_axis(board, move, dx, dy) for dx, dy in _WIN_DIRECTIONS]
+    four_count = 0
+    for axis in axes:
+        fours = set()
+        for start in range(1, WIN_LENGTH + 1):
+            end = start + WIN_LENGTH
+            window = axis[start:end]
+            if (
+                window.count(1) == 4
+                and EMPTY in window
+                and axis[start - 1] != 1
+                and axis[end] != 1
+            ):
+                fours.add(
+                    tuple(index for index in range(start, end) if axis[index] == 1)
+                )
+        four_count += len(fours)
+        if four_count >= 2:
+            return False, ForbiddenMoveReason.DOUBLE_FOUR
+
+    threes: dict[tuple[int, tuple[int, ...]], set[Move]] = {}
+    for axis_index, ((dx, dy), axis) in enumerate(
+        zip(_WIN_DIRECTIONS, axes, strict=True)
+    ):
+        for start in range(2, WIN_LENGTH + 1):
+            end = start + 4
+            window = axis[start:end]
+            if (
+                window.count(1) == 3
+                and EMPTY in window
+                and axis[start - 1] == axis[end] == EMPTY
+                and axis[start - 2] != 1
+                and axis[end + 1] != 1
+            ):
+                stones = tuple(index for index in range(start, end) if axis[index] == 1)
+                offset = start + window.index(EMPTY) - WIN_LENGTH
+                extension = Move(move.x + dx * offset, move.y + dy * offset)
+                threes.setdefault((axis_index, stones), set()).add(extension)
+    if len(threes) < 2:
+        return False, None
+    legal_threes = 0
+    extensions: dict[Move, tuple[bool, ForbiddenMoveReason | None]] = {}
+    for moves in threes.values():
+        for extension in moves:
+            if extension not in extensions:
+                extensions[extension] = _evaluate_black_move(board, extension)
+            if extensions[extension] == (False, None):
+                legal_threes += 1
+                break
+        if legal_threes >= 2:
+            return False, ForbiddenMoveReason.DOUBLE_THREE
+    return False, None
+
+
+def _evaluate_black_move(
+    board: Board, move: Move
+) -> tuple[bool, ForbiddenMoveReason | None]:
+    board[move.y][move.x] = 1
+    try:
+        return _black_outcome(board, move)
+    finally:
+        board[move.y][move.x] = EMPTY
+
+
+def _black_has_legal_move(board: Board) -> bool:
+    return any(
+        _evaluate_black_move(board, Move(x, y))[1] is None
+        for y, row in enumerate(board)
+        for x, cell in enumerate(row)
+        if cell == EMPTY
+    )
 
 
 def apply_move(state: GameState, move: Move) -> GameState:
@@ -122,7 +222,22 @@ def apply_move(state: GameState, move: Move) -> GameState:
     player: Player = state.current_player
     board[move.y][move.x] = player
 
-    if has_won(board, move.x, move.y, player):
+    policy = state.forbidden_move_policy
+    foul = None
+    result_reason = None
+    if player == 1 and policy is not ForbiddenMovePolicy.OFF:
+        won, foul = _black_outcome(board, move)
+    else:
+        won = has_won(board, move.x, move.y, player)
+
+    if foul is not None:
+        if policy is ForbiddenMovePolicy.WARN:
+            raise ForbiddenMoveError(foul)
+        status = GameStatus.WON
+        winner = 2
+        current_player = player
+        result_reason = GameResultReason(foul.value)
+    elif won:
         status = GameStatus.WON
         winner = player
         current_player = player
@@ -130,6 +245,15 @@ def apply_move(state: GameState, move: Move) -> GameState:
         status = GameStatus.DRAW
         winner = None
         current_player = player
+    elif (
+        player == 2
+        and policy is ForbiddenMovePolicy.WARN
+        and not _black_has_legal_move(board)
+    ):
+        status = GameStatus.WON
+        winner = player
+        current_player = player
+        result_reason = GameResultReason.NO_LEGAL_BLACK_MOVE
     else:
         status = GameStatus.IN_PROGRESS
         winner = None
@@ -141,10 +265,13 @@ def apply_move(state: GameState, move: Move) -> GameState:
         current_player=current_player,
         status=status,
         winner=winner,
+        result_reason=result_reason,
     )
 
 
-def select_cpu_move(board: Board) -> Move | None:
+def select_cpu_move(
+    board: Board, policy: ForbiddenMovePolicy = ForbiddenMovePolicy.OFF
+) -> Move | None:
     """Prefer an immediate win, an immediate block, and a forcing win in order."""
     validate_board(board)
     candidate_board = [row.copy() for row in board]
@@ -164,16 +291,155 @@ def select_cpu_move(board: Board) -> Move | None:
                 return Move(x, y)
             if block is None:
                 candidate_board[y][x] = 1
-                if has_won(candidate_board, x, y, 1):
+                black_wins = (
+                    has_won(candidate_board, x, y, 1)
+                    if policy is ForbiddenMovePolicy.OFF
+                    else _black_exact_five(candidate_board, x, y)
+                )
+                if black_wins:
                     block = Move(x, y)
             candidate_board[y][x] = EMPTY
             distance = (x - center) ** 2 + (y - center) ** 2
             if distance < closest_distance:
                 closest_distance = distance
                 fallback = Move(x, y)
-    if block is not None or fallback is None:
+    if fallback is None:
         return block
+    if policy is ForbiddenMovePolicy.WARN:
+        for y, row in enumerate(board):
+            for x, cell in enumerate(row):
+                if cell != EMPTY:
+                    continue
+                candidate_board[y][x] = 2
+                wins = any(
+                    EMPTY in row for row in candidate_board
+                ) and not _black_has_legal_move(candidate_board)
+                candidate_board[y][x] = EMPTY
+                if wins:
+                    return Move(x, y)
+    if block is not None:
+        return block
+    if policy is not ForbiddenMovePolicy.OFF:
+        return _find_restricted_tactical_move(candidate_board) or fallback
     return _find_tactical_move(board) or fallback
+
+
+def _black_exact_five(board: Board, x: int, y: int) -> bool:
+    return any(
+        _line_length(board, x, y, dx, dy, 1) == WIN_LENGTH for dx, dy in _WIN_DIRECTIONS
+    )
+
+
+def _move_at(position: int) -> Move:
+    y, x = divmod(position, BOARD_SIZE)
+    return Move(x, y)
+
+
+def _exact_five_at(board: Board, position: int) -> bool:
+    move = _move_at(position)
+    # The line count includes the pivot even while that intersection is empty.
+    return _black_exact_five(board, move.x, move.y)
+
+
+def _legal_black_double_threats(
+    board: Board,
+    black_completions: dict[int, set[int]],
+    white_wins: Collection[int],
+    white_move: int,
+) -> int:
+    count = 0
+    for reply, wins in black_completions.items():
+        if reply == white_move or any(win != reply for win in white_wins):
+            continue
+        move = _move_at(reply)
+        won, foul = _evaluate_black_move(board, move)
+        if foul is not None or won:
+            continue
+        board[move.y][move.x] = 1
+        try:
+            if (
+                sum(_exact_five_at(board, win) for win in wins if win != white_move)
+                >= 2
+            ):
+                count += 1
+        finally:
+            board[move.y][move.x] = EMPTY
+    return count
+
+
+def _find_restricted_tactical_move(board: Board) -> Move | None:
+    cells = [cell for row in board for cell in row]
+    completions = _two_move_completions(cells)
+    white_wins = completions[2]
+    forced_win = min(_double_threats(white_wins), key=_center_priority, default=None)
+    if forced_win is not None:
+        return _move_at(forced_win)
+
+    # Keep geometric candidates before checking legality. A white stone can
+    # legalize a previously forbidden reply, but cannot create a black pattern.
+    threats = _double_threats(completions[1])
+    if not threats:
+        return None
+
+    best = None
+    fewest = len(threats) + 1
+    candidates = sorted(
+        (position for position, cell in enumerate(cells) if cell == EMPTY),
+        key=_center_priority,
+    )
+    for candidate in candidates:
+        move = _move_at(candidate)
+        wins = white_wins.get(candidate, ())
+        board[move.y][move.x] = 2
+        try:
+            remaining = _legal_black_double_threats(board, threats, wins, candidate)
+            if (
+                remaining == 0
+                and len(wins) == 1
+                and _restricted_follow_up(board, next(iter(wins)))
+            ):
+                return move
+        finally:
+            board[move.y][move.x] = EMPTY
+        if remaining < fewest:
+            best, fewest = move, remaining
+    return best
+
+
+def _restricted_follow_up(board: Board, forced_block: int) -> bool:
+    block = _move_at(forced_block)
+    won, foul = _evaluate_black_move(board, block)
+    if foul is not None:
+        # Every legal alternative leaves the white winning point available.
+        return True
+    if won:
+        return False
+
+    board[block.y][block.x] = 1
+    try:
+        cells = [cell for row in board for cell in row]
+        empty = [position for position, cell in enumerate(cells) if cell == EMPTY]
+        if not empty:
+            return True
+        black_wins = [position for position in empty if _exact_five_at(board, position)]
+        if len(black_wins) > 1:
+            return False
+        completions = _two_move_completions(cells)
+        threats = _double_threats(completions[1])
+        if not threats:
+            return True
+        for candidate in black_wins or empty:
+            move = _move_at(candidate)
+            board[move.y][move.x] = 2
+            try:
+                wins = completions[2].get(candidate, ())
+                if not _legal_black_double_threats(board, threats, wins, candidate):
+                    return True
+            finally:
+                board[move.y][move.x] = EMPTY
+        return False
+    finally:
+        board[block.y][block.x] = EMPTY
 
 
 def _find_tactical_move(board: Board) -> Move | None:

@@ -14,6 +14,8 @@ Responses representing games contain the following fields. Board cells are index
 | `status` | string | `in_progress`, `won`, or `draw`. |
 | `winner` | integer or null | Winning player (`1` or `2`) for a won game. Otherwise null. |
 | `mode` | string | `two_player` or `cpu`. Games saved before CPU mode use `two_player`. |
+| `forbidden_move_policy` | string | `off`, `warn`, or `loss`. Saved at creation. Older games use `off`. |
+| `result_reason` | string or null | `overline`, `double_four`, or `double_three` for a black forbidden-move loss, or `no_legal_black_move` when white wins under Warn because no legal black move remains. Null for other outcomes and active games. |
 | `revision` | integer | Number of occupied cells, from `0` through `225`. Each accepted stone increments it by one. |
 
 A CPU game is waiting for the CPU when `mode` is `cpu`, `status` is `in_progress`, and `current_player` is `2`.
@@ -24,7 +26,7 @@ For POST requests, send the CSRF cookie and its `csrftoken` value in the `X-CSRF
 
 A malformed UUID does not match the route and returns Django's default `404` response. On a matching route, unsupported methods receive `405 Method Not Allowed` after middleware checks such as CSRF.
 
-After a move conflict or a lost POST response, fetch the saved state before accepting further input.
+After a move conflict or a lost POST response, fetch the saved state before accepting further input. A structured `forbidden_move` response under Warn confirms the rejected move left the saved position unchanged, so the caller can show the reason and let black retry.
 
 ## Get CSRF cookie
 
@@ -44,14 +46,15 @@ Create an empty game with black to move.
 
 `POST /api/v1/games/`
 
-To select a mode, send an `application/json` object containing only the optional `mode` field. An empty body or an empty JSON object creates a two-player game. Requests with other content types create a two-player game regardless of body contents.
+To select the mode or forbidden-move policy, send an `application/json` object containing the optional fields below. An empty body or empty JSON object creates a two-player game with policy Off. Requests with other content types use those same defaults regardless of body contents.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `mode` | string | No | `two_player` | Use `two_player` for two human turns or `cpu` for human black and CPU white. |
+| `forbidden_move_policy` | string | No | `off` | Use `off` for five-or-more rules, `warn` to reject a forbidden black move, or `loss` to record a forbidden black move as an immediate white win. Either game mode supports all three values. |
 
 ```json
-{"mode": "cpu"}
+{"mode": "cpu", "forbidden_move_policy": "warn"}
 ```
 
 Response `201 Created` returns the new game at revision `0`. This example creates a CPU game.
@@ -80,6 +83,8 @@ Response `201 Created` returns the new game at revision `0`. This example create
   "status": "in_progress",
   "winner": null,
   "mode": "cpu",
+  "forbidden_move_policy": "warn",
+  "result_reason": null,
   "revision": 0
 }
 ```
@@ -94,6 +99,7 @@ Example error response when the requested mode is unsupported.
 | --- | --- | --- |
 | `400 Bad Request` | `invalid_request` | Malformed JSON, a non-object JSON body, or unknown JSON fields. |
 | `400 Bad Request` | `invalid_mode` | The supplied mode is neither `two_player` nor `cpu`. |
+| `400 Bad Request` | `invalid_forbidden_move_policy` | The value is outside the set of supported strings. |
 | `503 Service Unavailable` | `cpu_creation_unavailable` | CPU game creation is disabled for rollout. Two-player creation remains available. |
 
 ## Get a game
@@ -132,6 +138,8 @@ Response `200 OK` returns the saved board and current turn or result. This examp
   "status": "in_progress",
   "winner": null,
   "mode": "cpu",
+  "forbidden_move_policy": "off",
+  "result_reason": null,
   "revision": 3
 }
 ```
@@ -196,8 +204,18 @@ Response `200 OK` returns the saved position after the human move. This example 
   "status": "in_progress",
   "winner": null,
   "mode": "cpu",
+  "forbidden_move_policy": "off",
+  "result_reason": null,
   "revision": 1
 }
+```
+
+In Loss mode, submitting a forbidden black move returns the same full game response with the submitted black stone, revision incremented by one, `current_player: 1`, `status: "won"`, `winner: 2`, and the specific `result_reason`. If a white move under Warn leaves empty squares but no legal black move, the response shows the final white stone, `current_player: 2`, `status: "won"`, `winner: 2`, and `result_reason: "no_legal_black_move"`. The same outcome can be returned by the CPU endpoint.
+
+Warn rejects a forbidden black move with `409 Conflict`. The server keeps the saved board, turn, revision, and history as they were before the attempt. Example response.
+
+```json
+{"error": "forbidden_move", "reason": "double_three"}
 ```
 
 Example error response when a black turn is submitted from an earlier position.
@@ -214,6 +232,7 @@ Example error response when a black turn is submitted from an earlier position.
 | `400 Bad Request` | `invalid_revision` | The supplied revision is not an integer from `0` through `225`. |
 | `404 Not Found` | `game_not_found` | No game exists with the supplied UUID. |
 | `409 Conflict` | `occupied` | The selected position already contains a stone. |
+| `409 Conflict` | `forbidden_move` | Warn rejected a black move. The `reason` is `overline`, `double_four`, or `double_three`. |
 | `409 Conflict` | `game_finished` | The game has already ended. |
 | `409 Conflict` | `not_human_turn` | An in-progress CPU game is waiting for white. |
 | `409 Conflict` | `stale_revision` | An in-progress CPU game is waiting for black at a different revision. |
@@ -267,6 +286,8 @@ In the example below, the CPU advances revision `1` to `2`.
   "status": "in_progress",
   "winner": null,
   "mode": "cpu",
+  "forbidden_move_policy": "off",
+  "result_reason": null,
   "revision": 2
 }
 ```

@@ -3,12 +3,20 @@
 from dataclasses import asdict, dataclass
 from uuid import UUID
 
-from app.domain.game.state import Board, GameMode, GameState, Move, Player
+from app.domain.game.state import (
+    Board,
+    ForbiddenMovePolicy,
+    GameMode,
+    GameState,
+    Move,
+    Player,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class CreateGameRequest:
     mode: GameMode = GameMode.TWO_PLAYER
+    forbidden_move_policy: ForbiddenMovePolicy = ForbiddenMovePolicy.OFF
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +43,8 @@ class GameResponse:
     winner: Player | None
     mode: str
     revision: int
+    forbidden_move_policy: str
+    result_reason: str | None
 
     @classmethod
     def from_state(cls, game_id: UUID, state: GameState) -> "GameResponse":
@@ -46,6 +56,10 @@ class GameResponse:
             winner=state.winner,
             mode=state.mode.value,
             revision=state.revision,
+            forbidden_move_policy=state.forbidden_move_policy.value,
+            result_reason=state.result_reason.value
+            if state.result_reason is not None
+            else None,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -55,9 +69,13 @@ class GameResponse:
 @dataclass(frozen=True, slots=True)
 class ErrorResponse:
     error: str
+    reason: str | None = None
 
     def to_dict(self) -> dict[str, str]:
-        return asdict(self)
+        result = {"error": self.error}
+        if self.reason is not None:
+            result["reason"] = self.reason
+        return result
 
 
 @dataclass(frozen=True, slots=True)

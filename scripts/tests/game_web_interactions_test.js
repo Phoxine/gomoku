@@ -19,11 +19,12 @@ function state(stone = 0) {
 
 function page({ saved = null, responder, clipboard }) {
   class Element {
-    constructor() {
+    constructor(name) {
       this.children = [];
       this.listeners = {};
       this.classList = { toggle() {} };
-      this.value = "";
+      this.dataset = {};
+      this.value = { "game-mode": "two_player", "forbidden-consequence": "warn" }[name] ?? "";
       this.textContent = "";
       this._disabled = false;
       this.tabIndex = 0;
@@ -49,12 +50,27 @@ function page({ saved = null, responder, clipboard }) {
     addEventListener(type, fn) { this.listeners[type] = fn; }
     click() { if (!this.disabled) return this.listeners.click?.(); }
   }
+  class Dialog extends Element {
+    open = false;
+
+    showModal() {
+      this.open = true;
+      document.getElementById("forbidden-dismiss").focus();
+    }
+
+    close() {
+      this.open = false;
+      this.listeners.close?.();
+    }
+  }
   const elements = new Map();
   const document = {
     cookie: "",
     activeElement: null,
     getElementById(name) {
-      if (!elements.has(name)) elements.set(name, new Element());
+      if (!elements.has(name)) {
+        elements.set(name, name === "forbidden-dialog" ? new Dialog() : new Element(name));
+      }
       return elements.get(name);
     },
     createElement() { return new Element(); },
@@ -105,7 +121,8 @@ test("CPU mode renders the human move before requesting white and guards the boa
   });
   app.elements.get("game-mode").value = "cpu";
   await app.elements.get("new-game").click();
-  assert.equal(app.calls.at(-1).options.body, '{"mode":"cpu"}');
+  assert.deepEqual(JSON.parse(app.calls.at(-1).options.body),
+    { mode: "cpu", forbidden_move_policy: "off" });
   const cells = app.elements.get("board").children;
   cells[0].focus();
   const turn = cells[0].click();
@@ -154,6 +171,90 @@ test("interrupted CPU advance keeps the saved board and retries from a fresh GET
   assert.equal(retry.hidden, true);
   assert.equal(cells[1].className, "cell white");
   assert.ok(cells.includes(app.document.activeElement));
+});
+
+test("a warned forbidden move restores black's focus without advancing the CPU", async () => {
+  const app = page({
+    responder(url) {
+      if (url.endsWith("/moves/")) {
+        return response({ error: "forbidden_move", reason: "double_three" }, 409);
+      }
+      return response({ ...cpuState(0), forbidden_move_policy: "warn" }, 201);
+    },
+  });
+  const { elements } = app;
+  elements.get("game-mode").value = "cpu";
+  const checkbox = elements.get("enable-forbidden-moves");
+  checkbox.checked = true;
+  checkbox.listeners.change();
+  assert.equal(elements.get("forbidden-options").hidden, false);
+  await elements.get("new-game").click();
+  assert.deepEqual(JSON.parse(app.calls.at(-1).options.body),
+    { mode: "cpu", forbidden_move_policy: "warn" });
+
+  const cell = elements.get("board").children[224];
+  cell.focus();
+  await cell.click();
+  assert.deepEqual(JSON.parse(app.calls.at(-1).options.body),
+    { x: 14, y: 14, expected_revision: 0 });
+  const dialog = elements.get("forbidden-dialog");
+  assert.equal(dialog.open, true);
+  assert.equal(elements.get("forbidden-title").textContent, "Forbidden move");
+  assert.match(elements.get("forbidden-explanation").textContent, /Double-three/);
+  assert.equal(app.document.activeElement, elements.get("forbidden-dismiss"));
+  assert.equal(elements.get("message").textContent, "");
+  assert.equal(elements.get("status-text").textContent, "Your turn (black)");
+  assert.equal(cell.className, "cell");
+  assert.ok(app.calls.every(({ url }) => !url.endsWith("/cpu-move/")));
+
+  dialog.close();
+  assert.equal(cell.disabled, false);
+  assert.equal(app.document.activeElement, cell);
+});
+
+test("a forbidden loss stops play and reopens the saved white win details", async () => {
+  const won = {
+    ...cpuState(1), current_player: 1, status: "won", winner: 2,
+    forbidden_move_policy: "loss", result_reason: "overline",
+  };
+  const app = page({
+    responder(url, options) {
+      if (url === "/api/v1/games/" && options.method === "POST") {
+        return response({ ...cpuState(0), forbidden_move_policy: "loss" }, 201);
+      }
+      return response({ ...won });
+    },
+  });
+  const { elements } = app;
+  elements.get("game-mode").value = "cpu";
+  elements.get("enable-forbidden-moves").checked = true;
+  elements.get("forbidden-consequence").value = "loss";
+  await elements.get("new-game").click();
+  assert.deepEqual(JSON.parse(app.calls.at(-1).options.body),
+    { mode: "cpu", forbidden_move_policy: "loss" });
+
+  const board = elements.get("board");
+  await board.children[0].click();
+  const dialog = elements.get("forbidden-dialog");
+  const details = elements.get("result-details");
+  assert.equal(dialog.open, true);
+  assert.equal(elements.get("forbidden-title").textContent, "White wins by forbidden move");
+  assert.match(elements.get("forbidden-explanation").textContent, /Overline/);
+  assert.equal(board.children[0].className, "cell black");
+  assert.equal(board.dataset.currentPlayer, "");
+  assert.ok(board.children.every((cell) => cell.disabled));
+  assert.equal(details.hidden, false);
+  dialog.close();
+  assert.equal(app.document.activeElement, details);
+  details.click();
+  assert.equal(dialog.open, true);
+
+  dialog.close();
+  await elements.get("refresh-game").click();
+  assert.equal(app.calls.at(-1).url, `/api/v1/games/${id}/`);
+  assert.equal(dialog.open, true);
+  assert.match(elements.get("forbidden-explanation").textContent, /Overline/);
+  assert.ok(app.calls.every(({ url }) => !url.endsWith("/cpu-move/")));
 });
 
 test("retry after a committed CPU response was lost observes the new board without another POST", async () => {
@@ -283,11 +384,15 @@ test("creates a game, stores it, and posts a move with CSRF", async () => {
   const board = app.elements.get("board");
   assert.equal(board.children.length, 225);
   assert.equal(board.children[0].disabled, true);
+  assert.equal(board.dataset.currentPlayer, "");
 
   await app.elements.get("new-game").click();
+  assert.deepEqual(JSON.parse(app.calls.at(-1).options.body),
+    { mode: "two_player", forbidden_move_policy: "off" });
   assert.equal(app.values.get("gomoku.gameId"), id);
   assert.equal(app.elements.get("game-id").value, id);
   assert.equal(app.elements.get("status-text").textContent, "Black to play");
+  assert.equal(board.dataset.currentPlayer, "1");
   assert.equal(board.children[0].disabled, false);
 
   board.children[0].click();
@@ -300,6 +405,7 @@ test("creates a game, stores it, and posts a move with CSRF", async () => {
   assert.equal(board.children[0].className, "cell black");
   assert.equal(board.children[0].disabled, true);
   assert.equal(app.elements.get("status-text").textContent, "White to play");
+  assert.equal(board.dataset.currentPlayer, "2");
 });
 
 test("restores a saved game and preserves it when a move fails", async () => {

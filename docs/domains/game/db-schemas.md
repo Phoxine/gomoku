@@ -10,6 +10,8 @@ The `games` table stores each game. Its model and initial migration are in `app.
 | `status` | VARCHAR(16) | No | `in_progress` | None | Must be `in_progress`, `won`, or `draw`. | Game status. |
 | `winner` | SMALLINT | Yes | `null` | None | Must be `1` or `2` for a won game and null otherwise. | Winning player, if any. |
 | `mode` | VARCHAR(16) | No | `two_player` | `two_player` | `game_mode_valid` permits only `two_player` and `cpu`. | Turn ownership, chosen at creation and immutable through game commands. |
+| `forbidden_move_policy` | VARCHAR(4) | No | `off` | `off` | `game_forbidden_move_policy_valid` permits `off`, `warn`, or `loss`. | Rule choice fixed at creation. |
+| `result_reason` | VARCHAR(19) | Yes | `null` | None | `game_forbidden_result_consistent` requires `status = 'won'` and `winner = 2` for a non-null reason. Under `loss`, the allowed reasons are `overline`, `double_four`, and `double_three` with `current_player = 1`. Under `warn`, the allowed reason is `no_legal_black_move` with `current_player = 2`. | Reason for a white win due to forbidden-move rules. |
 | `history_start_revision` | SMALLINT | No | `0` | None | `game_history_start_revision_valid` permits `0` through `225`. | Fixed revision at which move recording began for this game. |
 | `created_at` | TIMESTAMP WITH TIME ZONE | No | Set on creation | None | None | Creation time. |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | No | Set on save | None | None | Last update time. |
@@ -25,6 +27,10 @@ The migration adds the column and validates the mode constraint in one transacti
 Check constraints enforce the player, status, winner, and status/winner consistency rules. Django's positive small integer fields also produce the PostgreSQL checks `games_current_player_check` and `games_winner_check` for nonnegative values. The table has no foreign keys.
 
 The PostgreSQL board constraint applies to all database writes and rejects decimal cells such as `1.0`, consistent with the game service's integer-cell validation.
+
+### Forbidden-move migration
+
+The migration adds both columns and their check constraints. Existing rows get `off` and null without a data migration. The database default lets an older writer insert a game with policy Off. Pause and drain game writers before rollout, apply the schema, and resume writes once all writers enforce the enabled policies. The migration takes schema locks and constraint validation can scan the table. A migration reversal drops the saved policies and result reasons. Preserve the columns and pause writes if reverting to older app code after enabled games exist. [Forbidden-move migration](../../../src/app/domain/game/migrations/0004_game_forbidden_moves.py)
 
 ## Move history
 
