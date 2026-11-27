@@ -48,7 +48,9 @@ From the isolated feature worktree, start `bash scripts/compose.sh up --build -d
 
 In both modes, use seeded positions to submit a black forbidden move under each enabled setting. Warn must report the reason, preserve board and history, and allow a legal retry. Loss must persist exactly one final move and a white win, and the board must stay closed after reload. Also verify a black overline wins under Off and games saved before migration load under Off.
 
-If a response is lost, reload by ID and compare status, reason, revision, and history before retrying. Exercise rollback of the stone and result together in the history failure test. Apply the compatible schema before deploying feature code. Finish updating all writers before exposing enabled choices. During recovery, keep writes to enabled games on compatible code and retain the saved records.
+If a move response is lost, reload through `GET /api/v1/games/{id}/` and inspect the saved status, forbidden-move reason, and revision. A saved win ends play. If the game is still active, use the reloaded board and turn to decide whether black can try another move. In integration tests, query `GameRepository.read_verified_history(game_id)` before and after the attempted move. Verify that Warn adds no entry and Loss adds exactly one entry for the final black stone. Exercise rollback of the stone and result together in the history failure test.
+
+Apply the compatible schema before deploying feature code. Finish updating all writers before exposing enabled choices. During recovery, keep writes to enabled games on compatible code and retain the saved records.
 
 ## Pull requests
 
