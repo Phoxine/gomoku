@@ -1,9 +1,12 @@
 """Framework-agnostic Gomoku game rules."""
 
+from collections.abc import Collection, Iterator
 from dataclasses import replace
+from itertools import islice
 
 from app.domain.game.state import (
     Board,
+    Cell,
     GameState,
     GameStatus,
     IllegalMoveError,
@@ -142,7 +145,7 @@ def apply_move(state: GameState, move: Move) -> GameState:
 
 
 def select_cpu_move(board: Board) -> Move | None:
-    """Prefer a win, an immediate block, a threat defense, then the center."""
+    """Prefer an immediate win, an immediate block, and a forcing win in order."""
     validate_board(board)
     candidate_board = [row.copy() for row in board]
     center = BOARD_SIZE // 2
@@ -170,22 +173,72 @@ def select_cpu_move(board: Board) -> Move | None:
                 fallback = Move(x, y)
     if block is not None or fallback is None:
         return block
-    return _find_threat_defense(board) or fallback
+    return _find_tactical_move(board) or fallback
 
 
-def _find_threat_defense(board: Board) -> Move | None:
-    """Find the closest white move that stops every forcing black reply."""
+def _find_tactical_move(board: Board) -> Move | None:
+    """Find a forced win on white's next turn or minimize black's threats."""
     cells = [cell for row in board for cell in row]
-    if cells.count(1) < WIN_LENGTH - 2:
+    if all(cells.count(player) < WIN_LENGTH - 2 for player in (1, 2)):
         return None
 
+    completions = _two_move_completions(cells)
+    white_wins = completions[2]
+    forced_win = min(_double_threats(white_wins), key=_center_priority, default=None)
+    if forced_win is not None:
+        # Black had no immediate win and can occupy at most one winning point.
+        y, x = divmod(forced_win, BOARD_SIZE)
+        return Move(x, y)
+
+    threats = _double_threats(completions[1])
+    if not threats:
+        return None
+
+    forcing_candidates = sorted(
+        (candidate for candidate, wins in white_wins.items() if len(wins) == 1),
+        key=_center_priority,
+    )
+    for candidate in forcing_candidates:
+        wins = white_wins[candidate]
+        if _stops_threats(candidate, wins, threats) and _has_safe_follow_up(
+            cells, candidate, next(iter(wins)), completions[1]
+        ):
+            y, x = divmod(candidate, BOARD_SIZE)
+            return Move(x, y)
+
+    candidates = sorted(
+        (position for position, cell in enumerate(cells) if cell == EMPTY),
+        key=_center_priority,
+    )
+    best = candidates[0]
+    fewest = len(threats)
+    for candidate in candidates:
+        replies = _remaining_threats(candidate, white_wins.get(candidate, ()), threats)
+        # Candidates already follow the tie-break order, so a tie cannot improve best.
+        remaining = sum(1 for _ in islice(replies, fewest))
+        if remaining < fewest:
+            best, fewest = candidate, remaining
+            if fewest == 0:
+                break
+    y, x = divmod(best, BOARD_SIZE)
+    return Move(x, y)
+
+
+def _center_priority(position: int) -> tuple[int, int]:
+    y, x = divmod(position, BOARD_SIZE)
+    center = BOARD_SIZE // 2
+    return (x - center) ** 2 + (y - center) ** 2, position
+
+
+def _two_move_completions(cells: list[Cell]) -> dict[Player, dict[int, set[int]]]:
+    """Map first placements to the winning points they create."""
     completions: dict[Player, dict[int, set[int]]] = {1: {}, 2: {}}
     for window in _WIN_WINDOWS:
         values = [cells[position] for position in window]
         if values.count(EMPTY) != 2:
             continue
-        # With no immediate win, the two new stones must both belong to
-        # one five-cell window. Either empty position can be played first.
+        # Both new stones belong to one five-cell window. Either empty
+        # intersection can be the first placement.
         for player in completions:
             if values.count(player) == WIN_LENGTH - 2:
                 first, second = (
@@ -193,28 +246,58 @@ def _find_threat_defense(board: Board) -> Move | None:
                 )
                 completions[player].setdefault(first, set()).add(second)
                 completions[player].setdefault(second, set()).add(first)
+    return completions
 
-    threats = {reply: wins for reply, wins in completions[1].items() if len(wins) >= 2}
+
+def _double_threats(completions: dict[int, set[int]]) -> dict[int, set[int]]:
+    return {reply: wins for reply, wins in completions.items() if len(wins) >= 2}
+
+
+def _stops_threats(
+    candidate: int, white_wins: Collection[int], threats: dict[int, set[int]]
+) -> bool:
+    return next(_remaining_threats(candidate, white_wins, threats), None) is None
+
+
+def _remaining_threats(
+    candidate: int, white_wins: Collection[int], threats: dict[int, set[int]]
+) -> Iterator[int]:
+    """Yield each black reply that still creates an unanswerable double threat."""
+    return (
+        reply
+        for reply, black_wins in threats.items()
+        if reply != candidate
+        and (len(black_wins) > 2 or candidate not in black_wins)
+        and all(win == reply for win in white_wins)
+    )
+
+
+def _has_safe_follow_up(
+    cells: list[Cell],
+    defense: int,
+    forced_block: int,
+    black_completions: dict[int, set[int]],
+) -> bool:
+    # Neither color could win before the defense. The block removes white's
+    # sole winning point and can leave black only wins that it just created.
+    black_wins = set(black_completions.get(forced_block, ())) - {defense}
+    if len(black_wins) > 1:
+        return False
+
+    position = cells.copy()
+    position[defense] = 2
+    position[forced_block] = 1
+    completions = _two_move_completions(position)
+    threats = _double_threats(completions[1])
     if not threats:
-        return None
+        # White can block the sole black win, play any empty cell, or draw
+        # if the forced block filled the board.
+        return True
 
-    center = BOARD_SIZE // 2
-    closest_distance = BOARD_SIZE**2
-    defense = None
-    for candidate, cell in enumerate(cells):
-        if cell != EMPTY:
-            continue
-        y, x = divmod(candidate, BOARD_SIZE)
-        distance = (x - center) ** 2 + (y - center) ** 2
-        if distance >= closest_distance:
-            continue
-        white_wins = completions[2].get(candidate, ())
-        if all(
-            candidate == reply
-            or len(black_wins - {candidate}) < 2
-            or any(win != reply for win in white_wins)
-            for reply, black_wins in threats.items()
-        ):
-            closest_distance = distance
-            defense = Move(x, y)
-    return defense
+    candidates = black_wins or (
+        index for index, cell in enumerate(position) if cell == EMPTY
+    )
+    return any(
+        _stops_threats(candidate, completions[2].get(candidate, ()), threats)
+        for candidate in candidates
+    )
