@@ -34,13 +34,13 @@ When a policy is enabled, consider only legal black winning moves and black repl
 
 ### 3. Persist and expose policy and result
 
-Follow the [migration skill](../../../.agents/skills/migrate/SKILL.md) in the feature worktree. Give existing games the Off default and a null forbidden-move reason. Constrain policy and reason values and require any forbidden-move result reason to belong to a white win under Loss. Update the [repository](../../../src/app/domain/game/repository/game_repository.py), [application service](../../../src/app/domain/game/service/application_service.py), [DTOs](../../../src/app/api/game_dto.py), and [views](../../../src/app/api/game_views.py).
+Follow the [migration skill](../../../.agents/skills/migrate/SKILL.md) in the feature worktree. Give existing games the Off default and a null result reason. Constrain policy and reason values. Require a foul reason to belong to a white win under Loss, and the proposed `no_legal_black_move` reason to belong to a white win under Warn. Update the [repository](../../../src/app/domain/game/repository/game_repository.py), [application service](../../../src/app/domain/game/service/application_service.py), [DTOs](../../../src/app/api/game_dto.py), and [views](../../../src/app/api/game_views.py).
 
 Validate create values, preserve empty and omitted-field requests, and expose the immutable policy in returned game states. Apply the saved policy under the row lock after turn and applicable revision checks. Propose HTTP 409 with a `forbidden_move` error and reason for Warn. For Loss return HTTP 200 with `status: "won"`, `winner: 2`, and the persisted reason. Include the reason when subsequently returning game state. Test old rows, unknown create values, stale CPU-mode revisions, duplicate submissions after a loss, zero writes on Warn, one final history entry on Loss, and rollback if the history insert fails. Verify replaying recorded moves in a new game under its saved policy produces the saved result.
 
 ### 4. Add controls and verify browser flows
 
-Update [game.html](../../../src/app/template/game.html) and [game.js](../../../src/app/static/game/game.js). Submit the selected policy for either game mode. Show the saved policy when restoring a game and announce the specific reason through the existing live region. On Warn, keep the square empty and let black retry by keyboard or pointer. On Loss, show the final stone and why white won, then disable placement. Verify zero CPU move requests after a warning or loss.
+Update [game.html](../../../src/app/template/game.html), [game.js](../../../src/app/static/game/game.js), and [game.css](../../../src/app/static/game/game.css). Submit the selected policy for either game mode and show it when restoring a game. On Warn, open a dialog with the reason. Keep the square empty and return focus to the board after dismissal so black can retry. On Loss, show the final stone, disable placement, and open a dialog explaining why white won. Restore the dialog on reload and offer **View result details** after dismissal. Verify zero CPU move requests after a warning or loss. Preview a translucent stone in the current player's color when the pointer hovers over an empty square that accepts input. See the [player-facing rules](../../product-specs/local-two-player-game.md) and [web interface design](../../domains/game/context-designs.md#web-interface).
 
 ## Validation and recovery
 
@@ -62,11 +62,15 @@ Apply the compatible schema before deploying feature code. Finish updating all w
 ## Progress and review
 
 - [x] 2026-11-27 Confirmed shared move validation, black-first CPU ownership, occupied-cell revision, and transactional history. Drafted settings and acceptance checks.
-- [ ] Draft feature documentation and record human approval.
-- [ ] Record explicit schema-change approval.
-- [ ] Implement and validate milestones 2–4.
-- [ ] Record results and retrospective and move this plan to the completed directory.
+- [x] 2026-11-27 Drafted the linked English contracts on the implementation branch. Proposed a white win in Warn when a non-winning white move leaves empty cells but no legal black placement. Acceptance requires one history entry for that white stone, a saved `no_legal_black_move` reason, and a terminal board after reload.
+- [x] 2026-11-27 The user approved the English feature documentation, including the proposed Warn outcome.
+- [x] 2026-11-27 The user approved the two-column schema change and applying it to the implementation worktree's isolated database.
+- [x] 2026-11-27 Implemented milestones 2–4. Verified the migration, API and history behavior, domain rules, and CPU selection in the isolated Compose project.
+- [x] 2026-11-27 Verified turn-colored previews and both forbidden-move dialogs in Chrome. The user accepted the preview and requested that the final behavior be documented.
+- [x] 2026-11-27 Recorded the outcome and moved this plan to the completed directory.
 
 ## Outcomes and retrospective
 
-Feature implementation and acceptance are pending. Record validation results, rule cases that exposed gaps, and follow-up work before completing this plan.
+Migration `game.0004_game_forbidden_moves` applied to the isolated preview database. The model and migration states agree. Ruff formatting and lint passed, and the Compose suite passed all 289 tests. Documentation checks passed for 49 Markdown files and all 28 checker tests passed. The independent implementation review passed. A local Chrome run verified keyboard submission of an overline in Warn, a legal retry, the final stone and result after reloading a Loss game, and a normal CPU turn with Warn enabled. The user requested an uncommitted handoff with the app running for visual and functional review.
+
+The follow-up browser checks verified black and white hover previews across turn changes, retained the appearance of placed stones, and showed no hover preview while waiting for the CPU. They also verified both dialogs, Escape dismissal and board focus after a warning, result reopening and restore, and dialog sizing at a 360-pixel viewport. Seeded positions made the same overline reproducible under both settings during review.

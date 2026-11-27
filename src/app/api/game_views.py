@@ -21,7 +21,13 @@ from app.domain.game.service.application_service import (
     GameNotFoundError,
 )
 from app.domain.game.service.game_service import BOARD_SIZE
-from app.domain.game.state import GameMode, IllegalMoveError, IllegalMoveReason
+from app.domain.game.state import (
+    ForbiddenMoveError,
+    ForbiddenMovePolicy,
+    GameMode,
+    IllegalMoveError,
+    IllegalMoveReason,
+)
 
 
 def json_object(request: HttpRequest) -> dict[str, object] | None:
@@ -64,16 +70,24 @@ def create_game(request: HttpRequest) -> JsonResponse:
     create = CreateGameRequest()
     if request.content_type == "application/json" and request.body:
         data = json_object(request)
-        if data is None or data.keys() - {"mode"}:
+        if data is None or data.keys() - {"mode", "forbidden_move_policy"}:
             return error_response("invalid_request")
-        if "mode" in data:
-            try:
-                create = CreateGameRequest(GameMode(data["mode"]))
-            except ValueError:
-                return error_response("invalid_mode")
+        try:
+            mode = GameMode(data.get("mode", GameMode.TWO_PLAYER))
+        except ValueError:
+            return error_response("invalid_mode")
+        try:
+            policy = ForbiddenMovePolicy(
+                data.get("forbidden_move_policy", ForbiddenMovePolicy.OFF)
+            )
+        except ValueError:
+            return error_response("invalid_forbidden_move_policy")
+        create = CreateGameRequest(mode, policy)
     if create.mode is GameMode.CPU and not settings.CPU_CREATION_ENABLED:
         return error_response("cpu_creation_unavailable", 503)
-    game_id, state = GameApplicationService().create_game(create.mode)
+    game_id, state = GameApplicationService().create_game(
+        create.mode, create.forbidden_move_policy
+    )
     return JsonResponse(GameResponse.from_state(game_id, state).to_dict(), status=201)
 
 
@@ -108,6 +122,11 @@ def place_move(request: HttpRequest, game_id: UUID) -> JsonResponse:
         )
     except GameNotFoundError:
         return error_response("game_not_found", 404)
+    except ForbiddenMoveError as exc:
+        return JsonResponse(
+            ErrorResponse(exc.reason.value, exc.forbidden_reason.value).to_dict(),
+            status=409,
+        )
     except IllegalMoveError as exc:
         status = (
             409

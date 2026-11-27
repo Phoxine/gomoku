@@ -103,6 +103,7 @@ try:
     game_id = uuid.UUID(state['id'])
     assert set(state) == {
         'id', 'board', 'current_player', 'status', 'winner', 'mode', 'revision',
+        'forbidden_move_policy', 'result_reason',
     }
     assert state['board'] == [[0] * 15 for _ in range(15)]
     assert state['current_player'] == 1
